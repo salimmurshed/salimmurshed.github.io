@@ -300,7 +300,7 @@
       "use strict";
       a.d(t, {
         Z: function () {
-          return l;
+          return null; //l;
         },
       });
       var s = a(5893),
@@ -314,7 +314,7 @@
             "Salim Murshed is a software engineer who builds accessible, inclusive products and digital experiences for the web.",
           o = "https://salimmurshed.vercel.app/",
           c = "".concat(o, "/og.png"),
-          d = "@bchiang7",
+          d = "@salimmurshed",
           m = n;
         return (
           t !== n && (m = "".concat(t, " | ").concat(n)),
@@ -347,6 +347,19 @@
                 { property: "twitter:card", content: "summary_large_image" },
                 "twitter:card",
               ),
+              (0, s.jsx)("link", {
+                rel: "preconnect",
+                href: "https://fonts.googleapis.com",
+              }),
+              (0, s.jsx)("link", {
+                rel: "preconnect",
+                href: "https://fonts.gstatic.com",
+                crossOrigin: "anonymous",
+              }),
+              (0, s.jsx)("link", {
+                rel: "stylesheet",
+                href: "https://fonts.googleapis.com/css2?family=Big+Shoulders+Inline:opsz,wght@10..72,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Roboto+Slab:wght@100..900&display=swap",
+              }),
               (0, s.jsx)(
                 "meta",
                 { property: "twitter:creator", content: d },
@@ -389,8 +402,9 @@
               ),
               (0, s.jsx)("link", {
                 rel: "icon",
-                type: "image/svg+xml",
-                href: "./files/images/salim.svg",
+                // type: "image/svg+xml",
+                sizes: "any",
+                href: "./files/images/favicon.ico",
               }),
               (0, s.jsx)("link", {
                 rel: "icon",
@@ -450,17 +464,29 @@
           "aria-label": "About me",
           children: (0, s.jsxs)("div", {
             children: [
-              (0, s.jsx)("div", {
-                className:
-                  "sticky top-0 z-20 -mx-6 mb-4 w-screen bg-slate-900/75 px-6 py-5 backdrop-blur md:-mx-12 md:px-12 lg:sr-only lg:relative lg:top-auto lg:mx-auto lg:w-full lg:px-0 lg:py-0 lg:opacity-0",
-                children: (0, s.jsx)("h2", {
-                  className:
-                    "text-sm font-bold uppercase tracking-widest text-slate-200 lg:sr-only",
-                  children: "About",
-                }),
-              }),
+              // (0, s.jsx)("div", {
+              //   className:
+              //     "sticky top-0 z-20 -mx-6 mb-4 w-screen bg-slate-900/75 px-6 py-5 backdrop-blur md:-mx-12 md:px-12 lg:mx-auto lg:w-full lg:px-0 lg:py-0",
+              //   children: (0, s.jsx)("h2", {
+              //     className:
+              //       "text-sm font-bold uppercase tracking-widest text-slate-200",
+              //     children: "About",
+              //   }),
+              // }),
               (0, s.jsxs)("div", {
+                //./files/images/salim.png
                 children: [
+                  (0, s.jsx)("img", {
+                    src: "./files/images/profile.png",
+                    alt: "Executive Profile",
+                    className: "mb-4 w-full",
+                    style: {
+                      height: "400px",
+                      width: "300px",
+                      clipPath: "inset(0px 0px 50px 0px)",
+                    },
+                  }),
+
                   (0, s.jsx)("p", {
                     className: "mb-4 text-2xl font-bold",
                     children: "Executive Profile",
@@ -1369,7 +1395,7 @@
                       children: "Click to time travel",
                     }),
                     (0, s.jsx)(x(), {
-                      src: "/images/tardis/rotate.gif",
+                      src: "./files/rotate.gif",
                       alt: "Spinning Tardis from Doctor Who",
                       width: 100,
                       height: 86,
@@ -1674,22 +1700,24 @@
                   (0, s.jsxs)(
                     "section",
                     {
-                      id: t.heading.toLowerCase(),
-                      className:
-                        "mb-16 scroll-mt-16 md:mb-24 lg:mb-36 lg:scroll-mt-24",
-                      "aria-label": t.label,
-                      ref: (t) => (e.current[a] = t),
+                      id: t.heading ? t.heading.toLowerCase() : `section-${a}`,
+                      className: "mb-16 scroll-mt-16 md:mb-24 lg:scroll-mt-24",
+                      "aria-label": t.label || t.heading,
+                      ref: (el) => (e.current[a] = el),
                       children: [
                         (0, s.jsx)("div", {
                           className:
-                            "sticky top-0 z-20 -mx-6 mb-4 w-screen bg-slate-900/75 px-6 py-5 backdrop-blur md:-mx-12 md:px-12 lg:sr-only lg:relative lg:top-auto lg:mx-auto lg:w-full lg:px-0 lg:py-0 lg:opacity-0",
+                            "sticky top-0 z-20 -mx-6 mb-4 w-screen bg-slate-900/75 px-6 py-5 backdrop-blur md:-mx-12 md:px-12 lg:mx-auto lg:w-full lg:px-0 lg:py-0",
                           children: (0, s.jsx)("h2", {
                             className:
-                              "text-sm font-bold uppercase tracking-widest text-slate-200 lg:sr-only",
-                            children: t.heading,
+                              "text-2xl font-bold uppercase tracking-widest text-slate-200",
+                            style: {
+                              fontFamily: "'Big Shoulders Inline', display",
+                            },
+                            children: t.heading || "Default Title",
                           }),
                         }),
-                        t.component,
+                        t.component || null,
                       ],
                     },
                     a,

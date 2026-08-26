@@ -312,9 +312,9 @@
           a = "Salim Murshed",
           n =
             "Salim Murshed is a software engineer who builds accessible, inclusive products and digital experiences for the web.",
-          o = "https://brittanychiang.com",
+          o = "https://salimmurshed.vercel.app",
           c = "".concat(o, "/og.png"),
-          h = "@bchiang7",
+          h = "@salimmurshed",
           d = a;
         return (
           e !== a && (d = "".concat(e, " | ").concat(a)),
@@ -391,34 +391,34 @@
                 rel: "icon",
                 type: "image/png",
                 sizes: "512x192",
-                href: "/favicon/android-chrome-512x512.png",
+                href: "./files/images/salim.png",
               }),
               (0, l.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "192x192",
-                href: "/favicon/android-chrome-192x192.png",
+                href: "./files/images/salim.png",
               }),
               (0, l.jsx)("link", {
                 rel: "apple-touch-icon",
                 sizes: "180x180",
-                href: "/favicon/apple-touch-icon.png",
+                href: "./files/images/salim.png",
               }),
               (0, l.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "32x32",
-                href: "/favicon/favicon-32x32.png",
+                href: "./files/images/salim.png",
               }),
               (0, l.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "16x16",
-                href: "/favicon/favicon-16x16.png",
+                href: "./files/images/salim.png",
               }),
               (0, l.jsx)("link", {
                 rel: "manifest",
-                href: "/favicon/site.webmanifest",
+                href: "./site.webmanifest",
               }),
               (0, l.jsx)("meta", {
                 name: "msapplication-TileColor",
