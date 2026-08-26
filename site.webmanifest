@@ -1,9 +1,17 @@
 {
-  "name": "Brittany Chiang",
-  "short_name": "Brittany Chiang",
+  "name": "Salim Murshed",
+  "short_name": "Salim Murshed",
   "icons": [
-    { "src": "/files/images/salim.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/files/images/salim.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "/files/images/salim.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/files/images/salim.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ],
   "theme_color": "#0f172a",
   "background_color": "#0f172a",
