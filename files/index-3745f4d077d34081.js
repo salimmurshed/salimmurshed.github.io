@@ -389,36 +389,35 @@
               ),
               (0, s.jsx)("link", {
                 rel: "icon",
-                type: "image/png",
-                sizes: "512x192",
-                href: "/files/images/salim.png",
+                type: "image/svg+xml",
+                href: "./files/images/salim.svg",
               }),
               (0, s.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "192x192",
-                href: "/files/images/salim.png",
+                href: "./files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "apple-touch-icon",
                 sizes: "180x180",
-                href: "/files/images/salim.png",
+                href: "./files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "32x32",
-                href: "/files/images/salim.png",
+                href: "./files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "16x16",
-                href: "/files/images/salim.png",
+                href: "./files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "manifest",
-                href: "/site.webmanifest",
+                href: "./site.webmanifest",
               }),
               (0, s.jsx)("meta", {
                 name: "msapplication-TileColor",
