@@ -312,7 +312,7 @@
           n = "Salim Murshed",
           l =
             "Salim Murshed is a software engineer who builds accessible, inclusive products and digital experiences for the web.",
-          o = "https://brittanychiang.com",
+          o = "https://salimmurshed.vercel.app/",
           c = "".concat(o, "/og.png"),
           d = "@bchiang7",
           m = n;
@@ -391,34 +391,34 @@
                 rel: "icon",
                 type: "image/png",
                 sizes: "512x192",
-                href: "/favicon/android-chrome-512x512.png",
+                href: "/files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "192x192",
-                href: "/favicon/android-chrome-192x192.png",
+                href: "/files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "apple-touch-icon",
                 sizes: "180x180",
-                href: "/favicon/apple-touch-icon.png",
+                href: "/files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "32x32",
-                href: "/favicon/favicon-32x32.png",
+                href: "/files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "icon",
                 type: "image/png",
                 sizes: "16x16",
-                href: "/favicon/favicon-16x16.png",
+                href: "/files/images/salim.png",
               }),
               (0, s.jsx)("link", {
                 rel: "manifest",
-                href: "/favicon/site.webmanifest",
+                href: "/site.webmanifest",
               }),
               (0, s.jsx)("meta", {
                 name: "msapplication-TileColor",
@@ -1429,30 +1429,30 @@
                                 className:
                                   "inline-grid grid-cols-1 gap-2 md:grid-cols-2",
                                 "aria-label":
-                                  "Previous iterations of brittanychiang.com",
+                                  "Previous iterations of salimmurshed.vercel.app/",
                                 children: [
                                   {
                                     title: "v1",
                                     label: "version 1",
-                                    url: "https://v1.brittanychiang.com",
+                                    url: "https://v1.salimmurshed.vercel.app/",
                                     image: "/images/old/v1.png",
                                   },
                                   {
                                     title: "v2",
                                     label: "version 2",
-                                    url: "https://v2.brittanychiang.com",
+                                    url: "https://v2.salimmurshed.vercel.app/",
                                     image: "/images/old/v2.png",
                                   },
                                   {
                                     title: "v3",
                                     label: "version 3",
-                                    url: "https://v3.brittanychiang.com",
+                                    url: "https://v3.salimmurshed.vercel.app/",
                                     image: "/images/old/v3.png",
                                   },
                                   {
                                     title: "v4",
                                     label: "version 4",
-                                    url: "https://v4.brittanychiang.com",
+                                    url: "https://v4.salimmurshed.vercel.app/",
                                     image: "/images/old/v4.png",
                                   },
                                 ].map((e, t) =>
@@ -1464,13 +1464,15 @@
                                           "group relative block transition-all",
                                         href: e.url,
                                         "aria-label":
-                                          "brittanychiang.com ".concat(e.label),
+                                          "salimmurshed.vercel.app/ ".concat(
+                                            e.label,
+                                          ),
                                         children: [
                                           (0, s.jsx)(x(), {
                                             className:
                                               "mx-auto rounded border-2 border-zinc-900/30 drop-shadow-md group-hover:drop-shadow-xl",
                                             src: e.image,
-                                            alt: "Screenshot of brittanychiang.com ".concat(
+                                            alt: "Screenshot of salimmurshed.vercel.app/ ".concat(
                                               e.label,
                                             ),
                                             width: 180,
