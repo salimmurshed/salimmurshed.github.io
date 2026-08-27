@@ -1394,7 +1394,7 @@
                       className: "sr-only",
                       children: "Click to time travel",
                     }),
-                    (0, s.jsx)(x(), {
+                    (0, s.jsx)("img", {
                       src: "./files/rotate.gif",
                       alt: "Spinning Tardis from Doctor Who",
                       width: 100,
@@ -1445,14 +1445,11 @@
                             (0, s.jsx)(v.Dx, {
                               className:
                                 "mx-auto mb-12 max-w-xs text-center text-2xl font-semibold leading-tight tracking-tight text-slate-700 sm:text-3xl lg:max-w-md lg:text-4xl",
-                              children:
-                                "Looking for a different site? Go back in time...",
+                              children: "Do you need to contact me?",
                             }),
                             (0, s.jsx)("div", {
                               className: "flex justify-center",
                               children: (0, s.jsx)("ul", {
-                                className:
-                                  "inline-grid grid-cols-1 gap-2 md:grid-cols-2",
                                 "aria-label":
                                   "Previous iterations of salimmurshed.vercel.app/",
                                 children: [
@@ -1460,25 +1457,7 @@
                                     title: "v1",
                                     label: "version 1",
                                     url: "https://v1.salimmurshed.vercel.app/",
-                                    image: "/images/old/v1.png",
-                                  },
-                                  {
-                                    title: "v2",
-                                    label: "version 2",
-                                    url: "https://v2.salimmurshed.vercel.app/",
-                                    image: "/images/old/v2.png",
-                                  },
-                                  {
-                                    title: "v3",
-                                    label: "version 3",
-                                    url: "https://v3.salimmurshed.vercel.app/",
-                                    image: "/images/old/v3.png",
-                                  },
-                                  {
-                                    title: "v4",
-                                    label: "version 4",
-                                    url: "https://v4.salimmurshed.vercel.app/",
-                                    image: "/images/old/v4.png",
+                                    image: "./files/images/qrcode.png",
                                   },
                                 ].map((e, t) =>
                                   (0, s.jsx)(
@@ -1493,15 +1472,15 @@
                                             e.label,
                                           ),
                                         children: [
-                                          (0, s.jsx)(x(), {
+                                          (0, s.jsx)("img", {
                                             className:
                                               "mx-auto rounded border-2 border-zinc-900/30 drop-shadow-md group-hover:drop-shadow-xl",
                                             src: e.image,
                                             alt: "Screenshot of salimmurshed.vercel.app/ ".concat(
                                               e.label,
                                             ),
-                                            width: 180,
-                                            height: 48,
+                                            width: 360,
+                                            height: 150,
                                           }),
                                           (0, s.jsx)("div", {
                                             className:
@@ -1526,12 +1505,11 @@
                       (0, s.jsx)("a", {
                         className:
                           "absolute inset-x-0 bottom-0 z-40 block p-8 text-center text-xs text-slate-500 underline hover:text-slate-200 focus-visible:text-slate-200 sm:left-auto md:p-4",
-                        href: "https://codepen.io/jasesmith/pen/qqgvZe",
+                        href: "",
                         target: "_blank",
                         rel: "noreferrer noopener",
-                        "aria-label":
-                          "Credit: A Portal to Tomorrow by @jasesmith (opens CodePen in a new tab)",
-                        children: "A Portal to Tomorrow by @jasesmith",
+                        "aria-label": "Credit: Salim Murshed",
+                        children: "",
                       }),
                     ],
                   }),
