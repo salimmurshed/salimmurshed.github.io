@@ -77,20 +77,6 @@ export default async function handler(req, res) {
 
   // =========================================================
   // GET USER
-  //
-  // No custom filter is necessary.
-  // Stack Exchange default user object already contains:
-  //
-  // reputation
-  // question_count
-  // answer_count
-  // badge_counts
-  // view_count
-  // up_vote_count
-  // down_vote_count
-  // profile_image
-  // display_name
-  // etc.
   // =========================================================
 
   async function getUser() {
@@ -131,15 +117,6 @@ export default async function handler(req, res) {
 
   // =========================================================
   // STACK OVERFLOW PROFILE STATS
-  //
-  // These values are NOT part of the normal user API object:
-  //
-  // people reached
-  // posts edited
-  // helpful flags
-  // votes cast
-  //
-  // Therefore we read the public profile activity page.
   // =========================================================
 
   async function getProfileStats() {
@@ -176,10 +153,6 @@ export default async function handler(req, res) {
 
       const html = await response.text();
 
-      // -------------------------------------------------------
-      // Convert HTML -> plain text
-      // -------------------------------------------------------
-
       const plainText = html
         .replace(/<script[\s\S]*?<\/script>/gi, " ")
         .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -194,15 +167,6 @@ export default async function handler(req, res) {
 
       console.log("Stack Overflow profile text:", plainText);
 
-      // -------------------------------------------------------
-      // PEOPLE REACHED
-      //
-      // Current Stack Overflow format:
-      //
-      // ~149k people reached
-      //
-      // -------------------------------------------------------
-
       const peopleMatch = plainText.match(
         /(~?\s*[\d,.]+\s*[KMB]?)\s+people\s+reached/i,
       );
@@ -210,15 +174,6 @@ export default async function handler(req, res) {
       if (peopleMatch) {
         result.peopleReached = peopleMatch[1].replace(/\s+/g, "");
       }
-
-      // -------------------------------------------------------
-      // FALLBACK
-      //
-      // Some Stack Overflow pages can render:
-      //
-      // ~149k reached
-      //
-      // -------------------------------------------------------
 
       if (result.peopleReached === "—") {
         const reachedMatch = plainText.match(
@@ -230,45 +185,17 @@ export default async function handler(req, res) {
         }
       }
 
-      // -------------------------------------------------------
-      // POSTS EDITED
-      //
-      // Example:
-      //
-      // 29 posts edited
-      // 1,234 posts edited
-      //
-      // -------------------------------------------------------
-
       const editedMatch = plainText.match(/([\d,]+)\s+posts?\s+edited/i);
 
       if (editedMatch) {
         result.postsEdited = editedMatch[1];
       }
 
-      // -------------------------------------------------------
-      // HELPFUL FLAGS
-      //
-      // Example:
-      //
-      // 4 helpful flags
-      //
-      // -------------------------------------------------------
-
       const flagsMatch = plainText.match(/([\d,]+)\s+helpful\s+flags?/i);
 
       if (flagsMatch) {
         result.helpfulFlags = flagsMatch[1];
       }
-
-      // -------------------------------------------------------
-      // VOTES CAST
-      //
-      // Example:
-      //
-      // 205 votes cast
-      //
-      // -------------------------------------------------------
 
       const votesMatch = plainText.match(/([\d,]+)\s+votes\s+cast/i);
 
@@ -295,116 +222,79 @@ export default async function handler(req, res) {
       getProfileStats(),
     ]);
 
-    // =======================================================
     // REAL API COUNTS
-    // =======================================================
-
     const reputation = Number(user.reputation || 0);
-
     const questions = Number(user.question_count || 0);
-
     const answers = Number(user.answer_count || 0);
-
     const profileViews = Number(user.view_count || 0);
-
     const upVotes = Number(user.up_vote_count || 0);
-
     const downVotes = Number(user.down_vote_count || 0);
-
     const votesCast = upVotes + downVotes;
-
     const gold = Number(user.badge_counts?.gold || 0);
-
     const silver = Number(user.badge_counts?.silver || 0);
-
     const bronze = Number(user.badge_counts?.bronze || 0);
 
-    // =======================================================
     // RECENT REPUTATION
-    // =======================================================
-
     const now = Math.floor(Date.now() / 1000);
-
     let today = 0;
     let week = 0;
     let month = 0;
 
     for (const item of reputationHistory) {
       const timestamp = Number(item.creation_date || 0);
-
       const change = Number(item.reputation_change || 0);
-
       const age = now - timestamp;
 
       if (age <= 86400) {
         today += change;
       }
-
       if (age <= 86400 * 7) {
         week += change;
       }
-
       if (age <= 86400 * 30) {
         month += change;
       }
     }
 
-    // =======================================================
     // 30 DAY REPUTATION CHART
-    // =======================================================
-
     const daily = {};
-
     for (let i = 29; i >= 0; i--) {
       const date = new Date(Date.now() - i * 86400000);
-
       const key = date.toISOString().slice(0, 10);
-
       daily[key] = 0;
     }
 
     for (const item of reputationHistory) {
       const timestamp = Number(item.creation_date || 0);
-
       if (!timestamp) {
         continue;
       }
 
       const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
-
       if (Object.prototype.hasOwnProperty.call(daily, date)) {
         daily[date] += Number(item.reputation_change || 0);
       }
     }
 
     const chartValues = Object.values(daily);
-
     const chartX = 500;
     const chartY = 55;
     const chartWidth = 350;
     const chartHeight = 70;
 
     const minValue = Math.min(...chartValues, 0);
-
     const maxValue = Math.max(...chartValues, 1);
-
     const range = maxValue - minValue || 1;
 
     const points = chartValues
       .map((value, index) => {
         const x =
           chartX + (index / Math.max(chartValues.length - 1, 1)) * chartWidth;
-
         const y =
           chartY + chartHeight - ((value - minValue) / range) * chartHeight;
-
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(" ");
-
-    // =======================================================
-    // PROFILE IMAGE
-    // =======================================================
 
     const profileImage = user.profile_image || "";
 
@@ -597,13 +487,14 @@ export default async function handler(req, res) {
     stroke="#30363D"
   />
 
-  <!-- QUESTIONS -->
+  <!-- ROW 1 STATS -->
 
+  <!-- QUESTIONS -->
   <text
     x="40"
     y="165"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -614,7 +505,7 @@ export default async function handler(req, res) {
     x="40"
     y="198"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="27"
     font-weight="700"
   >
@@ -622,12 +513,11 @@ export default async function handler(req, res) {
   </text>
 
   <!-- ANSWERS -->
-
   <text
     x="240"
     y="165"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -638,7 +528,7 @@ export default async function handler(req, res) {
     x="240"
     y="198"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="27"
     font-weight="700"
   >
@@ -646,12 +536,11 @@ export default async function handler(req, res) {
   </text>
 
   <!-- PROFILE VIEWS -->
-
   <text
     x="440"
     y="165"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -662,7 +551,7 @@ export default async function handler(req, res) {
     x="440"
     y="198"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="27"
     font-weight="700"
   >
@@ -670,12 +559,11 @@ export default async function handler(req, res) {
   </text>
 
   <!-- PEOPLE REACHED -->
-
   <text
     x="650"
     y="165"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -686,22 +574,21 @@ export default async function handler(req, res) {
     x="650"
     y="198"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="27"
     font-weight="700"
   >
     ${escapeXml(profileStats.peopleReached)}
   </text>
 
-  <!-- ROW 2 -->
+  <!-- ROW 2 STATS -->
 
   <!-- BADGES -->
-
   <text
     x="40"
     y="245"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -719,7 +606,7 @@ export default async function handler(req, res) {
     x="65"
     y="280"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="14"
   >
     ${gold}
@@ -736,7 +623,7 @@ export default async function handler(req, res) {
     x="128"
     y="280"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="14"
   >
     ${silver}
@@ -753,19 +640,18 @@ export default async function handler(req, res) {
     x="193"
     y="280"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="14"
   >
     ${bronze}
   </text>
 
   <!-- POSTS EDITED -->
-
   <text
     x="300"
     y="245"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -776,7 +662,7 @@ export default async function handler(req, res) {
     x="300"
     y="280"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="27"
     font-weight="700"
   >
@@ -784,12 +670,11 @@ export default async function handler(req, res) {
   </text>
 
   <!-- HELPFUL FLAGS -->
-
   <text
     x="500"
     y="245"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -800,20 +685,19 @@ export default async function handler(req, res) {
     x="500"
     y="280"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="27"
     font-weight="700"
   >
     ${escapeXml(profileStats.helpfulFlags)}
   </text>
 
-  <!-- VOTES -->
-
+  <!-- VOTES CAST -->
   <text
     x="700"
     y="245"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -824,7 +708,7 @@ export default async function handler(req, res) {
     x="700"
     y="280"
     fill="#FFFFFF"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="27"
     font-weight="700"
   >
@@ -835,7 +719,7 @@ export default async function handler(req, res) {
     )}
   </text>
 
-  <!-- Recent reputation -->
+  <!-- RECENT REPUTATION -->
 
   <line
     x1="30"
@@ -849,7 +733,7 @@ export default async function handler(req, res) {
     x="40"
     y="350"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
     font-weight="700"
   >
@@ -860,7 +744,7 @@ export default async function handler(req, res) {
     x="40"
     y="378"
     fill="#3FB950"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="13"
     font-weight="700"
   >
@@ -871,7 +755,7 @@ export default async function handler(req, res) {
     x="125"
     y="378"
     fill="#3FB950"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="13"
     font-weight="700"
   >
@@ -882,7 +766,7 @@ export default async function handler(req, res) {
     x="190"
     y="378"
     fill="#3FB950"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="13"
     font-weight="700"
   >
@@ -893,7 +777,7 @@ export default async function handler(req, res) {
     x="500"
     y="378"
     fill="#6E7681"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
   >
     Stack Exchange API • Automatically updated
@@ -907,11 +791,8 @@ export default async function handler(req, res) {
     // =======================================================
 
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
-
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-
     res.setHeader("Pragma", "no-cache");
-
     res.setHeader("Expires", "0");
 
     return res.status(200).send(svg);
@@ -938,7 +819,7 @@ export default async function handler(req, res) {
     y="80"
     text-anchor="middle"
     fill="#F85149"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="20"
     font-weight="700"
   >
@@ -950,7 +831,7 @@ export default async function handler(req, res) {
     y="115"
     text-anchor="middle"
     fill="#8B949E"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="13"
   >
     ${escapeXml(error.message)}
@@ -961,7 +842,7 @@ export default async function handler(req, res) {
     y="145"
     text-anchor="middle"
     fill="#6E7681"
-    font-family="Arial"
+    font-family="Arial, Helvetica, sans-serif"
     font-size="11"
   >
     User ID: ${escapeXml(USER_ID)}
@@ -971,7 +852,6 @@ export default async function handler(req, res) {
 `;
 
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
-
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 
     return res.status(200).send(errorSvg);
