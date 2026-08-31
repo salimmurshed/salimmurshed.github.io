@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/stackoverflow.js": {
+    "api/sov.js": {
       "maxDuration": 10
     }
   }
