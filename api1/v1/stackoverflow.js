@@ -1,11 +1,15 @@
 import zlib from "zlib";
 
 export default async function handler(req, res) {
+  // 1. Fallback default parameters if omitted in query string
   const USER_ID = String(req.query.id || "9202118");
   const SITE = String(req.query.site || "stackoverflow");
 
+  // Prevent CORS and Caching issues
   res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
 
   const escapeXml = (str) =>
     String(str ?? "")
@@ -15,7 +19,6 @@ export default async function handler(req, res) {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&apos;");
 
-  // Stack Exchange API Data Fetcher Helper
   async function fetchApi(endpoint) {
     const response = await fetch(endpoint, {
       headers: {
@@ -40,7 +43,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Fetch User Profile Info (Questions & Answers count)
+    // User Stats (Questions & Answers count)
     const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}&filter=!9_bDDxJY5`;
     const userData = await fetchApi(userUrl);
 
@@ -53,19 +56,17 @@ export default async function handler(req, res) {
     const questionCount = user.question_count || 0;
     const answerCount = user.answer_count || 0;
 
-    // 2. Fetch Recent Answers with Question Titles
+    // Recent Answers with Question Titles
     const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation&filter=!3v(.BAZ(O4)V6-1u6`;
     const answersData = await fetchApi(answersUrl);
-
     const recentAnswers = answersData.items || [];
 
-    // 3. Generate Recent Answer Titles List SVG Markup
+    // Render Recent Answer Titles List
     let answersListSvg = "";
     if (recentAnswers.length > 0) {
       answersListSvg = recentAnswers
         .map((ans, idx) => {
           const yPos = 185 + idx * 28;
-          // Title length truncate
           let rawTitle = ans.title || "Answered Question";
           if (rawTitle.length > 65) {
             rawTitle = rawTitle.substring(0, 62) + "...";
@@ -88,10 +89,8 @@ export default async function handler(req, res) {
       `;
     }
 
-    // Dynamic Card Height based on number of answers
     const cardHeight = Math.max(220, 160 + (recentAnswers.length || 1) * 32);
 
-    // 4. Construct SVG Output
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="${cardHeight}" viewBox="0 0 900 ${cardHeight}">
   <defs>
@@ -105,15 +104,12 @@ export default async function handler(req, res) {
     </linearGradient>
   </defs>
 
-  <!-- Background Card -->
   <rect width="900" height="${cardHeight}" rx="12" fill="url(#bg)" stroke="#30363D" stroke-width="1"/>
   <rect width="900" height="4" rx="2" fill="url(#accent)"/>
 
-  <!-- User Name & Header -->
   <text x="40" y="45" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="bold">${escapeXml(name)}</text>
   <text x="40" y="68" fill="#F48024" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">STACK OVERFLOW CONTRIBUTIONS</text>
 
-  <!-- Questions & Answers Counts -->
   <g transform="translate(600, 35)">
     <rect x="0" y="0" width="120" height="42" rx="6" fill="#21262D" stroke="#30363D"/>
     <text x="60" y="18" text-anchor="middle" fill="#8B949E" font-family="sans-serif" font-size="10" font-weight="700">QUESTIONS</text>
@@ -126,13 +122,10 @@ export default async function handler(req, res) {
     <text x="62" y="36" text-anchor="middle" fill="#3FB950" font-family="sans-serif" font-size="15" font-weight="bold">${answerCount}</text>
   </g>
 
-  <!-- Divider Line -->
   <line x1="40" y1="100" x2="860" y2="100" stroke="#30363D" stroke-width="1"/>
 
-  <!-- Recent Answers Section Header -->
   <text x="40" y="130" fill="#8B949E" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="0.5">RECENT ANSWER TITLES</text>
 
-  <!-- List of Answers -->
   ${answersListSvg}
 </svg>
 `;
