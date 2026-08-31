@@ -1,10 +1,10 @@
 export default async function handler(req, res) {
-  const USER_ID = req.query.id || "";
+  const USER_ID = req.query.id || "9202118";
   const SITE = req.query.site || "stackoverflow";
 
   try {
     const response = await fetch(
-      `https://api.stackexchange.com/2.3/users/${USER_ID}?site=stackoverflow`,
+      `https://api.stackexchange.com/2.3/users/${USER_ID}?site=stackoverflow&filter=!)RL-JogHwoZuazwo6-n_WuM`,
     );
 
     if (!response.ok) {
