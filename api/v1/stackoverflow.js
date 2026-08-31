@@ -82,7 +82,8 @@ export default async function handler(req, res) {
   async function getUser() {
     const url =
       `${API}/users/${encodeURIComponent(USER_ID)}` +
-      `?site=${encodeURIComponent(SITE)}`;
+      `?site=${encodeURIComponent(SITE)}` +
+      `&filter=!9_bDDxJY5`;
 
     const data = await getJson(url);
 
