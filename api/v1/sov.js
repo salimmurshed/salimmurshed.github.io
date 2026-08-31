@@ -17,7 +17,6 @@ export default async function handler(req, res) {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&apos;");
 
-  // HTML Entity decoder for Stack Overflow Titles (e.g., &quot; to ")
   const decodeHtmlEntities = (str) =>
     String(str ?? "")
       .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
@@ -51,8 +50,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Fetch User Data with Filter for exact question/answer counts
-    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}&filter=!nNPvSN0Z5e`;
+    // 1. Fetch User Stats (Question & Answer counts using standard filter)
+    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}&filter=default`;
     const userData = await fetchApi(userUrl);
 
     if (!userData.items || userData.items.length === 0) {
@@ -61,8 +60,10 @@ export default async function handler(req, res) {
 
     const user = userData.items[0];
     const name = user.display_name || "User";
-    const questionCount = user.question_count ?? 0;
-    const answerCount = user.answer_count ?? 0;
+
+    // Alternative fallback check for count breakdown
+    const questionCount = user.badge_counts ? (user.question_count ?? 0) : 0;
+    const answerCount = user.badge_counts ? (user.answer_count ?? 0) : 0;
 
     // 2. Fetch Recent Answers
     const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation`;
@@ -73,14 +74,28 @@ export default async function handler(req, res) {
     let questionMap = {};
     if (recentAnswers.length > 0) {
       const qIds = recentAnswers.map((a) => a.question_id).join(";");
-      // filter=!gB.D*Yv.y. completely returns title and core details safely
-      const qUrl = `https://api.stackexchange.com/2.3/questions/${qIds}?site=${encodeURIComponent(SITE)}&filter=!gB.D*Yv.y.`;
+      const qUrl = `https://api.stackexchange.com/2.3/questions/${qIds}?site=${encodeURIComponent(SITE)}`;
       const qData = await fetchApi(qUrl);
       if (qData.items) {
         qData.items.forEach((q) => {
           questionMap[q.question_id] = decodeHtmlEntities(q.title);
         });
       }
+    }
+
+    // Direct User stats fix if count returned zero from default user object
+    let finalQuestionCount = questionCount;
+    let finalAnswerCount = answerCount;
+
+    if (finalQuestionCount === 0 && finalAnswerCount === 0) {
+      const qCheckUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/questions?site=${encodeURIComponent(SITE)}&filter=total`;
+      const aCheckUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&filter=total`;
+      const [qRes, aRes] = await Promise.all([
+        fetchApi(qCheckUrl),
+        fetchApi(aCheckUrl),
+      ]);
+      finalQuestionCount = qRes.total ?? 0;
+      finalAnswerCount = aRes.total ?? 0;
     }
 
     // 4. Render SVG Items
@@ -136,13 +151,13 @@ export default async function handler(req, res) {
   <g transform="translate(600, 35)">
     <rect x="0" y="0" width="120" height="42" rx="6" fill="#21262D" stroke="#30363D"/>
     <text x="60" y="18" text-anchor="middle" fill="#8B949E" font-family="sans-serif" font-size="10" font-weight="700">QUESTIONS</text>
-    <text x="60" y="36" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="15" font-weight="bold">${questionCount}</text>
+    <text x="60" y="36" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="15" font-weight="bold">${finalQuestionCount}</text>
   </g>
 
   <g transform="translate(735, 35)">
     <rect x="0" y="0" width="125" height="42" rx="6" fill="#21262D" stroke="#30363D"/>
     <text x="62" y="18" text-anchor="middle" fill="#8B949E" font-family="sans-serif" font-size="10" font-weight="700">ANSWERS</text>
-    <text x="62" y="36" text-anchor="middle" fill="#3FB950" font-family="sans-serif" font-size="15" font-weight="bold">${answerCount}</text>
+    <text x="62" y="36" text-anchor="middle" fill="#3FB950" font-family="sans-serif" font-size="15" font-weight="bold">${finalAnswerCount}</text>
   </g>
 
   <line x1="40" y1="100" x2="860" y2="100" stroke="#30363D" stroke-width="1"/>
