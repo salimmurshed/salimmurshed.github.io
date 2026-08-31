@@ -31,8 +31,9 @@ export default async function handler(req, res) {
   };
 
   // =========================================================
-  // JSON FETCH (with basic retry, since the SE API rate-limits
-  // and occasionally hiccups on serverless cold starts)
+  // JSON FETCH — with a short retry, since the SE API can
+  // hiccup on serverless cold starts. This is now the ONLY
+  // data source in this file: no HTML scraping anywhere.
   // =========================================================
 
   async function getJson(url, options = {}, attempts = 2) {
@@ -69,7 +70,6 @@ export default async function handler(req, res) {
         return data;
       } catch (error) {
         lastError = error;
-        // brief backoff before retrying once
         if (i < attempts - 1) {
           await new Promise((r) => setTimeout(r, 300));
         }
@@ -81,10 +81,6 @@ export default async function handler(req, res) {
 
   // =========================================================
   // GET USER
-  //
-  // Default user object already contains: reputation,
-  // question_count, answer_count, badge_counts, view_count,
-  // up_vote_count, down_vote_count, profile_image, display_name.
   // =========================================================
 
   async function getUser() {
@@ -122,14 +118,8 @@ export default async function handler(req, res) {
   }
 
   // =========================================================
-  // TOP TAGS  (NEW)
-  //
-  // Real API data instead of scraping — reliable and won't
-  // get blocked by anti-bot protection like the HTML profile
-  // page does. Combines question + answer participation and
-  // sorts by total posts in that tag.
-  //
-  // Docs: /users/{ids}/tags
+  // TOP TAGS — real API data (/users/{ids}/tags), sorted by
+  // popularity. Reliable, no scraping, no blocking risk.
   // =========================================================
 
   async function getTopTags() {
@@ -152,117 +142,18 @@ export default async function handler(req, res) {
   }
 
   // =========================================================
-  // STACK OVERFLOW PROFILE EXTRAS
-  //
-  // "People reached", "posts edited", "helpful flags" are not
-  // exposed by the API at all, only on the HTML profile page.
-  // That page is frequently served differently (or blocked) to
-  // datacenter/serverless IPs, so treat this as best-effort only
-  // — never let it silently masquerade as "0" when it actually
-  // means "unknown". Everything here defaults to "—" and only
-  // overwrites that default when a match is actually found.
-  // =========================================================
-
-  async function getProfileStats() {
-    const result = {
-      peopleReached: "—",
-      postsEdited: "—",
-      helpfulFlags: "—",
-    };
-
-    try {
-      const profileUrl =
-        `https://stackoverflow.com/users/` +
-        `${encodeURIComponent(USER_ID)}` +
-        `?tab=topactivity`;
-
-      const response = await fetch(profileUrl, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
-            "AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "Chrome/151.0 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Profile HTTP ${response.status}`);
-      }
-
-      const html = await response.text();
-
-      // Bail early if we clearly got a bot-check / non-profile page
-      // rather than quietly returning zeroes for everything.
-      if (!/topactivity|profile|reputation/i.test(html)) {
-        throw new Error("Unexpected profile page content (likely blocked)");
-      }
-
-      const plainText = html
-        .replace(/<script[\s\S]*?<\/script>/gi, " ")
-        .replace(/<style[\s\S]*?<\/style>/gi, " ")
-        .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/&amp;/gi, "&")
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;/gi, "'")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      // PEOPLE REACHED — accepts "~149k people reached" and
-      // the shorter "~149k reached" variant.
-      const peopleMatch =
-        plainText.match(/(~?\s*[\d,.]+\s*[KMB]?)\s+people\s+reached/i) ||
-        plainText.match(/(~?\s*[\d,.]+\s*[KMB]?)\s+reached/i);
-
-      if (peopleMatch) {
-        result.peopleReached = peopleMatch[1].replace(/\s+/g, "");
-      }
-
-      // POSTS EDITED — accepts "29 posts edited" and "29 edits"
-      const editedMatch =
-        plainText.match(/([\d,]+)\s+posts?\s+edited/i) ||
-        plainText.match(/([\d,]+)\s+edits?\b/i);
-
-      if (editedMatch) {
-        result.postsEdited = editedMatch[1];
-      }
-
-      // HELPFUL FLAGS — accepts "4 helpful flags" and "4 flags"
-      const flagsMatch =
-        plainText.match(/([\d,]+)\s+helpful\s+flags?/i) ||
-        plainText.match(/([\d,]+)\s+flags?\b/i);
-
-      if (flagsMatch) {
-        result.helpfulFlags = flagsMatch[1];
-      }
-    } catch (error) {
-      console.error(
-        "Profile statistics (best-effort, non-fatal):",
-        error.message,
-      );
-    }
-
-    return result;
-  }
-
-  // =========================================================
   // MAIN
   // =========================================================
 
   try {
-    const [user, reputationHistory, profileStats, topTags] = await Promise.all([
+    const [user, reputationHistory, topTags] = await Promise.all([
       getUser(),
       getReputation(),
-      getProfileStats(),
       getTopTags(),
     ]);
 
     // =======================================================
-    // REAL API COUNTS  (source of truth — never scraped)
+    // CORE STATS — all straight from the API, nothing scraped
     // =======================================================
 
     const reputation = Number(user.reputation || 0);
@@ -318,10 +209,10 @@ export default async function handler(req, res) {
     }
 
     const chartValues = Object.values(daily);
-    const chartX = 500;
-    const chartY = 55;
-    const chartWidth = 350;
-    const chartHeight = 70;
+    const chartX = 490;
+    const chartY = 50;
+    const chartWidth = 370;
+    const chartHeight = 62;
     const minValue = Math.min(...chartValues, 0);
     const maxValue = Math.max(...chartValues, 1);
     const range = maxValue - minValue || 1;
@@ -336,8 +227,14 @@ export default async function handler(req, res) {
       })
       .join(" ");
 
+    // Filled area under the chart line, for a bit more polish
+    const areaPath =
+      chartValues.length > 1
+        ? `M${chartX},${chartY + chartHeight} L${points} L${chartX + chartWidth},${chartY + chartHeight} Z`
+        : "";
+
     // =======================================================
-    // TOP TAGS ROW  (NEW)
+    // TOP TAGS ROW
     // =======================================================
 
     const tagColors = [
@@ -352,11 +249,11 @@ export default async function handler(req, res) {
     ];
 
     let tagX = 40;
-    const tagY = 430;
+    const tagY = 366;
     const tagPillHeight = 30;
     const tagGap = 12;
-    const tagCharWidth = 7.2; // approx width per character at font-size 13
-    const tagPadding = 34; // room for text padding + count badge
+    const tagCharWidth = 7.2;
+    const tagPadding = 34;
 
     const tagPills = topTags.length
       ? topTags
@@ -376,23 +273,8 @@ export default async function handler(req, res) {
       stroke="${tagColors[index % tagColors.length]}"
       stroke-width="1.5"
     />
-    <text
-      x="14"
-      y="20"
-      fill="#E6EDF3"
-      font-family="Arial, Helvetica, sans-serif"
-      font-size="13"
-      font-weight="600"
-    >${escapeXml(label)}</text>
-    <text
-      x="${pillWidth - 12}"
-      y="20"
-      text-anchor="end"
-      fill="${tagColors[index % tagColors.length]}"
-      font-family="Arial, Helvetica, sans-serif"
-      font-size="12"
-      font-weight="700"
-    >${countLabel}</text>
+    <text x="14" y="20" fill="#E6EDF3" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="600">${escapeXml(label)}</text>
+    <text x="${pillWidth - 12}" y="20" text-anchor="end" fill="${tagColors[index % tagColors.length]}" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">${countLabel}</text>
   </g>`;
 
             tagX += pillWidth + tagGap;
@@ -400,13 +282,7 @@ export default async function handler(req, res) {
           })
           .join("")
       : `
-  <text
-    x="40"
-    y="${tagY + 20}"
-    fill="#6E7681"
-    font-family="Arial, Helvetica, sans-serif"
-    font-size="13"
-  >No tag data available</text>`;
+  <text x="40" y="${tagY + 20}" fill="#6E7681" font-family="Arial, Helvetica, sans-serif" font-size="13">No tag data available</text>`;
 
     // =======================================================
     // PROFILE IMAGE
@@ -422,12 +298,12 @@ export default async function handler(req, res) {
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="900"
-  height="490"
-  viewBox="0 0 900 490"
+  height="430"
+  viewBox="0 0 900 430"
 >
 
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="900" y2="490">
+    <linearGradient id="background" x1="0" y1="0" x2="900" y2="430">
       <stop offset="0" stop-color="#0D1117" />
       <stop offset="1" stop-color="#171B22" />
     </linearGradient>
@@ -437,20 +313,24 @@ export default async function handler(req, res) {
       <stop offset="1" stop-color="#FFB86B" />
     </linearGradient>
 
+    <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F48024" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#F48024" stop-opacity="0" />
+    </linearGradient>
+
     <clipPath id="avatar">
       <circle cx="72" cy="70" r="42" />
     </clipPath>
   </defs>
 
   <!-- Background -->
-  <rect width="900" height="490" rx="18" fill="url(#background)" />
+  <rect width="900" height="430" rx="18" fill="url(#background)" />
 
-  <!-- Orange line -->
+  <!-- Top accent line -->
   <rect width="900" height="5" rx="3" fill="url(#accent)" />
 
   <!-- Avatar -->
   <circle cx="72" cy="70" r="47" fill="#252A33" />
-
   ${
     profileImage
       ? `
@@ -462,32 +342,33 @@ export default async function handler(req, res) {
     height="84"
     clip-path="url(#avatar)"
     preserveAspectRatio="xMidYMid slice"
-  />
-  `
+  />`
       : ""
   }
 
-  <!-- Name -->
-  <text x="140" y="60" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700">
+  <!-- Name + reputation -->
+  <text x="140" y="58" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700">
     ${escapeXml(user.display_name)}
   </text>
 
-  <text x="140" y="87" fill="#F48024" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1">
+  <text x="140" y="84" fill="#F48024" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2">
     STACK OVERFLOW
   </text>
 
-  <text x="140" y="112" fill="#8B949E" font-family="Arial, Helvetica, sans-serif" font-size="12">
+  <circle cx="146" cy="106" r="3" fill="#F48024" />
+  <text x="156" y="110" fill="#8B949E" font-family="Arial, Helvetica, sans-serif" font-size="12">
     REPUTATION
   </text>
-
-  <text x="215" y="112" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">
+  <text x="245" y="110" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">
     ${number(reputation)}
   </text>
 
-  <!-- Chart -->
-  <text x="500" y="30" fill="#8B949E" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700">
+  <!-- 30 day reputation chart -->
+  <text x="${chartX}" y="30" fill="#8B949E" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="0.5">
     30 DAY REPUTATION ACTIVITY
   </text>
+
+  ${areaPath ? `<path d="${areaPath}" fill="url(#chartFill)" />` : ""}
 
   <polyline
     points="${points}"
@@ -503,72 +384,59 @@ export default async function handler(req, res) {
   <!-- Divider -->
   <line x1="30" y1="140" x2="870" y2="140" stroke="#30363D" />
 
-  <!-- QUESTIONS -->
-  <text x="40" y="165" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">QUESTIONS</text>
-  <text x="40" y="198" fill="#FFFFFF" font-family="Arial" font-size="27" font-weight="700">${number(questions)}</text>
+  <!-- Row 1: Questions / Answers / Profile Views / Votes Cast -->
+  <text x="40" y="167" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">QUESTIONS</text>
+  <text x="40" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${number(questions)}</text>
 
-  <!-- ANSWERS -->
-  <text x="240" y="165" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">ANSWERS</text>
-  <text x="240" y="198" fill="#FFFFFF" font-family="Arial" font-size="27" font-weight="700">${number(answers)}</text>
+  <text x="255" y="167" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">ANSWERS</text>
+  <text x="255" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${number(answers)}</text>
 
-  <!-- PROFILE VIEWS -->
-  <text x="440" y="165" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">PROFILE VIEWS</text>
-  <text x="440" y="198" fill="#FFFFFF" font-family="Arial" font-size="27" font-weight="700">${number(profileViews)}</text>
+  <text x="470" y="167" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">PROFILE VIEWS</text>
+  <text x="470" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${number(profileViews)}</text>
 
-  <!-- PEOPLE REACHED -->
-  <text x="650" y="165" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">PEOPLE REACHED</text>
-  <text x="650" y="198" fill="#FFFFFF" font-family="Arial" font-size="27" font-weight="700">${escapeXml(profileStats.peopleReached)}</text>
+  <text x="685" y="167" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">VOTES CAST</text>
+  <text x="685" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${number(votesCast)}</text>
 
-  <!-- ROW 2 -->
+  <!-- Divider -->
+  <line x1="30" y1="228" x2="870" y2="228" stroke="#30363D" />
 
-  <!-- BADGES -->
-  <text x="40" y="245" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">BADGES</text>
-  <circle cx="47" cy="275" r="8" fill="#FFCC00" />
-  <text x="65" y="280" fill="#FFFFFF" font-family="Arial" font-size="14">${gold}</text>
-  <circle cx="110" cy="275" r="8" fill="#B4B8BC" />
-  <text x="128" y="280" fill="#FFFFFF" font-family="Arial" font-size="14">${silver}</text>
-  <circle cx="175" cy="275" r="8" fill="#D28C45" />
-  <text x="193" y="280" fill="#FFFFFF" font-family="Arial" font-size="14">${bronze}</text>
+  <!-- Row 2: Badges + Recent reputation -->
+  <text x="40" y="254" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">BADGES</text>
 
-  <!-- POSTS EDITED -->
-  <text x="300" y="245" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">POSTS EDITED</text>
-  <text x="300" y="280" fill="#FFFFFF" font-family="Arial" font-size="27" font-weight="700">${escapeXml(profileStats.postsEdited)}</text>
+  <circle cx="47" cy="284" r="8" fill="#FFCC00" />
+  <text x="65" y="289" fill="#FFFFFF" font-family="Arial" font-size="15" font-weight="600">${gold}</text>
 
-  <!-- HELPFUL FLAGS -->
-  <text x="500" y="245" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">HELPFUL FLAGS</text>
-  <text x="500" y="280" fill="#FFFFFF" font-family="Arial" font-size="27" font-weight="700">${escapeXml(profileStats.helpfulFlags)}</text>
+  <circle cx="115" cy="284" r="8" fill="#B4B8BC" />
+  <text x="133" y="289" fill="#FFFFFF" font-family="Arial" font-size="15" font-weight="600">${silver}</text>
 
-  <!-- VOTES CAST (always real API data — never scraped/guessed) -->
-  <text x="700" y="245" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">VOTES CAST</text>
-  <text x="700" y="280" fill="#FFFFFF" font-family="Arial" font-size="27" font-weight="700">${number(votesCast)}</text>
+  <circle cx="185" cy="284" r="8" fill="#D28C45" />
+  <text x="203" y="289" fill="#FFFFFF" font-family="Arial" font-size="15" font-weight="600">${bronze}</text>
 
-  <!-- Recent reputation -->
-  <line x1="30" y1="320" x2="870" y2="320" stroke="#30363D" />
+  <text x="440" y="254" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">RECENT REPUTATION</text>
 
-  <text x="40" y="350" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">RECENT REPUTATION</text>
-
-  <text x="40" y="378" fill="${today >= 0 ? "#3FB950" : "#F85149"}" font-family="Arial" font-size="13" font-weight="700">
+  <text x="440" y="288" fill="${today >= 0 ? "#3FB950" : "#F85149"}" font-family="Arial" font-size="14" font-weight="700">
     Today ${today >= 0 ? "+" : ""}${today}
   </text>
-  <text x="125" y="378" fill="${week >= 0 ? "#3FB950" : "#F85149"}" font-family="Arial" font-size="13" font-weight="700">
+  <text x="545" y="288" fill="${week >= 0 ? "#3FB950" : "#F85149"}" font-family="Arial" font-size="14" font-weight="700">
     7d ${week >= 0 ? "+" : ""}${week}
   </text>
-  <text x="190" y="378" fill="${month >= 0 ? "#3FB950" : "#F85149"}" font-family="Arial" font-size="13" font-weight="700">
+  <text x="625" y="288" fill="${month >= 0 ? "#3FB950" : "#F85149"}" font-family="Arial" font-size="14" font-weight="700">
     30d ${month >= 0 ? "+" : ""}${month}
   </text>
 
-  <text x="500" y="378" fill="#6E7681" font-family="Arial, Helvetica, sans-serif" font-size="11">
-    Stack Exchange API • Automatically updated
-  </text>
+  <!-- Divider -->
+  <line x1="30" y1="330" x2="870" y2="330" stroke="#30363D" />
 
-  <!-- Top Tags -->
-  <line x1="30" y1="400" x2="870" y2="400" stroke="#30363D" />
-
-  <text x="40" y="422" fill="#8B949E" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700">
+  <!-- Top tags -->
+  <text x="40" y="352" fill="#8B949E" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="0.5">
     TOP TAGS
   </text>
 
   ${tagPills}
+
+  <text x="860" y="412" text-anchor="end" fill="#6E7681" font-family="Arial, Helvetica, sans-serif" font-size="10">
+    Stack Exchange API • Automatically updated
+  </text>
 
 </svg>
 `;
