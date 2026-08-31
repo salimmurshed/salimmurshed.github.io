@@ -555,11 +555,32 @@ export default async function handler(req, res) {
   >
     ${bronze}
   </text>
+<!-- PEOPLE REACHED -->
+  <text
+    x="650"
+    y="400"
+    fill="#8B949E"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="11"
+    font-weight="700"
+  >
+    PEOPLE REACHED
+  </text>
 
+  <text
+    x="650"
+    y="400"
+    fill="#FFFFFF"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="27"
+    font-weight="700"
+  >
+    ${escapeXml(profileStats.peopleReached)}
+  </text>
   <!-- POSTS EDITED -->
   <text
     x="300"
-    y="200"
+    y="245"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
     font-size="11"
@@ -570,7 +591,7 @@ export default async function handler(req, res) {
 
   <text
     x="300"
-    y="200"
+    y="280"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
     font-size="27"
@@ -582,7 +603,7 @@ export default async function handler(req, res) {
   <!-- HELPFUL FLAGS -->
   <text
     x="500"
-    y="200"
+    y="245"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
     font-size="11"
@@ -593,7 +614,7 @@ export default async function handler(req, res) {
 
   <text
     x="500"
-    y="200"
+    y="280"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
     font-size="27"
@@ -605,7 +626,7 @@ export default async function handler(req, res) {
   <!-- VOTES CAST -->
   <text
     x="700"
-    y="200"
+    y="245"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
     font-size="11"
@@ -616,7 +637,7 @@ export default async function handler(req, res) {
 
   <text
     x="700"
-    y="200"
+    y="280"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
     font-size="27"
@@ -628,28 +649,7 @@ export default async function handler(req, res) {
         : number(votesCast),
     )}
   </text>
-<!-- PEOPLE REACHED -->
-  <text
-    x="650"
-    y="140"
-    fill="#8B949E"
-    font-family="Arial, Helvetica, sans-serif"
-    font-size="11"
-    font-weight="700"
-  >
-    PEOPLE REACHED
-  </text>
 
-  <text
-    x="650"
-    y="140"
-    fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
-    font-size="27"
-    font-weight="700"
-  >
-    ${escapeXml(profileStats.peopleReached)}
-  </text>
   <!-- RECENT REPUTATION -->
 
   <line
