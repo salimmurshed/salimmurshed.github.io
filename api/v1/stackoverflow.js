@@ -224,9 +224,7 @@ export default async function handler(req, res) {
 
     // REAL API COUNTS
     const reputation = Number(user.reputation || 0);
-    const questions = Number(user.question_count || 0);
-    const answers = Number(user.answer_count || 0);
-    const profileViews = Number(user.view_count || 0);
+
     const upVotes = Number(user.up_vote_count || 0);
     const downVotes = Number(user.down_vote_count || 0);
     const votesCast = upVotes + downVotes;
