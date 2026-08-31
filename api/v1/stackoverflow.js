@@ -7,9 +7,7 @@ async function getProfileStats() {
   };
 
   try {
-    const profileUrl =
-      `https://stackoverflow.com/users/${encodeURIComponent(USER_ID)}` +
-      `?tab=topactivity`;
+    const profileUrl = `https://stackoverflow.com/users/${encodeURIComponent(USER_ID)}?tab=topactivity`;
 
     const response = await fetch(profileUrl, {
       headers: {
@@ -17,10 +15,8 @@ async function getProfileStats() {
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
           "AppleWebKit/537.36 (KHTML, like Gecko) " +
           "Chrome/151.0.0.0 Safari/537.36",
-
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-
         "Accept-Language": "en-US,en;q=0.9",
       },
     });
@@ -31,24 +27,19 @@ async function getProfileStats() {
 
     const html = await response.text();
 
-    // =====================================================
-    // Extract the IMPACT section only
-    // =====================================================
-
+    // Find Impact heading
     const impactStart = html.search(/<h3[^>]*>\s*Impact\s*<\/h3>/i);
 
     if (impactStart === -1) {
       throw new Error("Impact section not found");
     }
 
-    const impactHtml = html.slice(impactStart, impactStart + 12000);
+    // Impact section is immediately after the heading.
+    const impactHtml = html.slice(impactStart, impactStart + 15000);
 
     console.log("IMPACT HTML:", impactHtml);
 
-    // =====================================================
-    // Convert only Impact HTML to text
-    // =====================================================
-
+    // Convert HTML → plain text
     const impactText = impactHtml
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -62,21 +53,25 @@ async function getProfileStats() {
 
     console.log("IMPACT TEXT:", impactText);
 
-    // =====================================================
+    // -----------------------------------------------------
     // PEOPLE REACHED
-    // =====================================================
+    // Actual Stack Overflow text:
+    // "~149k people reached"
+    // -----------------------------------------------------
 
     const peopleMatch = impactText.match(
       /(~?\s*[\d,.]+\s*[KMB]?)\s+people\s+reached/i,
     );
 
     if (peopleMatch) {
-      result.peopleReached = peopleMatch[1].replace(/\s+/g, "");
+      result.peopleReached = peopleMatch[1].replace(/\s+/g, "").trim();
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // POSTS EDITED
-    // =====================================================
+    // Actual text:
+    // "29 posts edited"
+    // -----------------------------------------------------
 
     const postsMatch = impactText.match(/([\d,]+)\s+posts?\s+edited/i);
 
@@ -84,9 +79,11 @@ async function getProfileStats() {
       result.postsEdited = postsMatch[1];
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // HELPFUL FLAGS
-    // =====================================================
+    // Actual text:
+    // "4 helpful flags"
+    // -----------------------------------------------------
 
     const flagsMatch = impactText.match(/([\d,]+)\s+helpful\s+flags?/i);
 
@@ -94,9 +91,11 @@ async function getProfileStats() {
       result.helpfulFlags = flagsMatch[1];
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // VOTES CAST
-    // =====================================================
+    // Actual text:
+    // "205 votes cast"
+    // -----------------------------------------------------
 
     const votesMatch = impactText.match(/([\d,]+)\s+votes\s+cast/i);
 
@@ -104,9 +103,9 @@ async function getProfileStats() {
       result.votesCast = votesMatch[1];
     }
 
-    console.log("FINAL PROFILE STATS:", JSON.stringify(result));
+    console.log("FINAL PROFILE STATS:", result);
   } catch (error) {
-    console.error("Profile statistics:", error.message);
+    console.error("Profile statistics:", error);
   }
 
   return result;
