@@ -27,78 +27,78 @@ export default async function handler(req, res) {
       .replace(/&amp;/g, "&");
 
   async function fetchApi(endpoint) {
-    const response = await fetch(endpoint, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Accept-Encoding": "gzip, deflate",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`API HTTP ${response.status}`);
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    let decompressed;
     try {
-      decompressed = zlib.gunzipSync(buffer).toString("utf-8");
-    } catch {
-      decompressed = buffer.toString("utf-8");
-    }
+      const response = await fetch(endpoint, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+          "Accept-Encoding": "gzip, deflate",
+        },
+      });
 
-    return JSON.parse(decompressed);
+      if (!response.ok) return null;
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      let decompressed;
+      try {
+        decompressed = zlib.gunzipSync(buffer).toString("utf-8");
+      } catch {
+        decompressed = buffer.toString("utf-8");
+      }
+
+      return JSON.parse(decompressed);
+    } catch {
+      return null;
+    }
   }
 
   try {
-    // 1. Fetch User Stats (Question & Answer counts using standard filter)
-    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}&filter=default`;
+    // 1. Fetch User Stats
+    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}`;
     const userData = await fetchApi(userUrl);
 
-    if (!userData.items || userData.items.length === 0) {
-      throw new Error(`User ID ${USER_ID} not found`);
+    if (!userData || !userData.items || userData.items.length === 0) {
+      throw new Error(`User ID ${USER_ID} not found on ${SITE}`);
     }
 
     const user = userData.items[0];
     const name = user.display_name || "User";
 
-    // Alternative fallback check for count breakdown
-    const questionCount = user.badge_counts ? (user.question_count ?? 0) : 0;
-    const answerCount = user.badge_counts ? (user.answer_count ?? 0) : 0;
+    // 2. Fetch Answers & Questions Total Counts directly
+    const qCheckUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/questions?site=${encodeURIComponent(SITE)}&filter=total`;
+    const aCheckUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&filter=total`;
 
-    // 2. Fetch Recent Answers
+    const [qRes, aRes] = await Promise.all([
+      fetchApi(qCheckUrl),
+      fetchApi(aCheckUrl),
+    ]);
+
+    const questionCount = qRes?.total ?? (user.question_count || 0);
+    const answerCount = aRes?.total ?? (user.answer_count || 0);
+
+    // 3. Fetch Recent Answers
     const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation`;
     const answersData = await fetchApi(answersUrl);
-    const recentAnswers = answersData.items || [];
+    const recentAnswers = answersData?.items || [];
 
-    // 3. Fetch Real Question Titles for those Answers
+    // 4. Fetch Question Titles safely
     let questionMap = {};
     if (recentAnswers.length > 0) {
-      const qIds = recentAnswers.map((a) => a.question_id).join(";");
-      const qUrl = `https://api.stackexchange.com/2.3/questions/${qIds}?site=${encodeURIComponent(SITE)}`;
-      const qData = await fetchApi(qUrl);
-      if (qData.items) {
-        qData.items.forEach((q) => {
-          questionMap[q.question_id] = decodeHtmlEntities(q.title);
-        });
+      const qIds = recentAnswers
+        .map((a) => a.question_id)
+        .filter(Boolean)
+        .join(";");
+      if (qIds) {
+        const qUrl = `https://api.stackexchange.com/2.3/questions/${qIds}?site=${encodeURIComponent(SITE)}`;
+        const qData = await fetchApi(qUrl);
+        if (qData?.items) {
+          qData.items.forEach((q) => {
+            questionMap[q.question_id] = decodeHtmlEntities(q.title);
+          });
+        }
       }
     }
 
-    // Direct User stats fix if count returned zero from default user object
-    let finalQuestionCount = questionCount;
-    let finalAnswerCount = answerCount;
-
-    if (finalQuestionCount === 0 && finalAnswerCount === 0) {
-      const qCheckUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/questions?site=${encodeURIComponent(SITE)}&filter=total`;
-      const aCheckUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&filter=total`;
-      const [qRes, aRes] = await Promise.all([
-        fetchApi(qCheckUrl),
-        fetchApi(aCheckUrl),
-      ]);
-      finalQuestionCount = qRes.total ?? 0;
-      finalAnswerCount = aRes.total ?? 0;
-    }
-
-    // 4. Render SVG Items
+    // 5. Render Recent Items
     let answersListSvg = "";
     if (recentAnswers.length > 0) {
       answersListSvg = recentAnswers
@@ -123,7 +123,7 @@ export default async function handler(req, res) {
         .join("");
     } else {
       answersListSvg = `
-        <text x="40" y="195" fill="#8B949E" font-family="sans-serif" font-size="13">No recent answers found.</text>
+        <text x="40" y="185" fill="#8B949E" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="13">No recent answers found.</text>
       `;
     }
 
@@ -151,13 +151,13 @@ export default async function handler(req, res) {
   <g transform="translate(600, 35)">
     <rect x="0" y="0" width="120" height="42" rx="6" fill="#21262D" stroke="#30363D"/>
     <text x="60" y="18" text-anchor="middle" fill="#8B949E" font-family="sans-serif" font-size="10" font-weight="700">QUESTIONS</text>
-    <text x="60" y="36" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="15" font-weight="bold">${finalQuestionCount}</text>
+    <text x="60" y="36" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="15" font-weight="bold">${questionCount}</text>
   </g>
 
   <g transform="translate(735, 35)">
     <rect x="0" y="0" width="125" height="42" rx="6" fill="#21262D" stroke="#30363D"/>
     <text x="62" y="18" text-anchor="middle" fill="#8B949E" font-family="sans-serif" font-size="10" font-weight="700">ANSWERS</text>
-    <text x="62" y="36" text-anchor="middle" fill="#3FB950" font-family="sans-serif" font-size="15" font-weight="bold">${finalAnswerCount}</text>
+    <text x="62" y="36" text-anchor="middle" fill="#3FB950" font-family="sans-serif" font-size="15" font-weight="bold">${answerCount}</text>
   </g>
 
   <line x1="40" y1="100" x2="860" y2="100" stroke="#30363D" stroke-width="1"/>
@@ -173,7 +173,7 @@ export default async function handler(req, res) {
     const errorSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="100" viewBox="0 0 600 100">
   <rect width="600" height="100" rx="8" fill="#0D1117" stroke="#F85149" stroke-width="1"/>
-  <text x="300" y="45" text-anchor="middle" fill="#F85149" font-family="sans-serif" font-size="14" font-weight="bold">Error Fetching Data</text>
+  <text x="300" y="45" text-anchor="middle" fill="#F85149" font-family="sans-serif" font-size="14" font-weight="bold">Data Not Found</text>
   <text x="300" y="70" text-anchor="middle" fill="#8B949E" font-family="sans-serif" font-size="12">${escapeXml(err.message)}</text>
 </svg>
 `;
