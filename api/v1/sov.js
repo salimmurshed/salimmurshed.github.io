@@ -54,18 +54,32 @@ export default async function handler(req, res) {
     const questionCount = user.question_count || 0;
     const answerCount = user.answer_count || 0;
 
-    // 2. Fetch Recent Answers with Question Details
-    const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation&filter=withbody`;
+    // 2. Fetch Recent Answers
+    const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation`;
     const answersData = await fetchApi(answersUrl);
     const recentAnswers = answersData.items || [];
 
-    // 3. Render List
+    // 3. Fetch Question Titles for those Answers
+    let questionMap = {};
+    if (recentAnswers.length > 0) {
+      const qIds = recentAnswers.map((a) => a.question_id).join(";");
+      const qUrl = `https://api.stackexchange.com/2.3/questions/${qIds}?site=${encodeURIComponent(SITE)}`;
+      const qData = await fetchApi(qUrl);
+      if (qData.items) {
+        qData.items.forEach((q) => {
+          questionMap[q.question_id] = q.title;
+        });
+      }
+    }
+
+    // 4. Render SVG Items
     let answersListSvg = "";
     if (recentAnswers.length > 0) {
       answersListSvg = recentAnswers
         .map((ans, idx) => {
           const yPos = 185 + idx * 28;
-          let rawTitle = ans.title || `Answer to Question #${ans.question_id}`;
+          let rawTitle =
+            questionMap[ans.question_id] || `Question #${ans.question_id}`;
           if (rawTitle.length > 65) {
             rawTitle = rawTitle.substring(0, 62) + "...";
           }
