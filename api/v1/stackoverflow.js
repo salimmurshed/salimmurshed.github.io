@@ -3,51 +3,24 @@ export default async function handler(req, res) {
   const SITE = req.query.site || "stackoverflow";
 
   try {
-    const response = await fetch(
-      `https://api.stackexchange.com/2.3/users/${USER_ID}?site=stackoverflow&filter=!)RL-JogHwoZuazwo6-n_WuM`,
-    );
+    // =========================================================
+    // HELPERS
+    // =========================================================
 
-    if (!response.ok) {
-      throw new Error(`Stack Overflow API returned ${response.status}`);
-    }
+    const escapeXml = (value) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
 
-    const data = await response.json();
+    const formatNumber = (value) =>
+      new Intl.NumberFormat("en-US").format(Number(value || 0));
 
-    if (!data.items?.length) {
-      throw new Error("User not found");
-    }
+    const shortNumber = (value) => {
+      value = Number(value || 0);
 
-    const user = data.items[0];
-
-    // -----------------------------------------
-    // Safe values
-    // -----------------------------------------
-
-    const name = user.display_name || "Stack Overflow User";
-
-    const reputation = Number(user.reputation || 0);
-
-    const questions = Number(user.question_count || 0);
-
-    const answers = Number(user.answer_count || 0);
-
-    const views = Number(user.view_count || 0);
-
-    const gold = Number(user.badge_counts?.gold || 0);
-
-    const silver = Number(user.badge_counts?.silver || 0);
-
-    const bronze = Number(user.badge_counts?.bronze || 0);
-
-    // -----------------------------------------
-    // Format numbers
-    // -----------------------------------------
-
-    const formatNumber = (value) => {
-      return new Intl.NumberFormat("en-US").format(value);
-    };
-
-    const formatViews = (value) => {
       if (value >= 1000000) {
         return `${(value / 1000000).toFixed(1)}M`;
       }
@@ -56,59 +29,282 @@ export default async function handler(req, res) {
         return `${(value / 1000).toFixed(1)}K`;
       }
 
-      return formatNumber(value);
+      return String(value);
     };
 
-    // -----------------------------------------
-    // Escape XML
-    // -----------------------------------------
+    const api = async (url) => {
+      const response = await fetch(url);
 
-    const escapeXml = (value) => {
-      return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&apos;");
+      if (!response.ok) {
+        throw new Error(`Stack Exchange API error ${response.status}: ${url}`);
+      }
+
+      return response.json();
     };
 
-    // -----------------------------------------
-    // Profile image
-    //
-    // IMPORTANT:
-    // GitHub can have problems rendering an
-    // external image inside SVG.
-    //
-    // Stack Overflow profile image is placed
-    // directly as an SVG image.
-    // -----------------------------------------
+    // =========================================================
+    // USER PROFILE
+    // =========================================================
+
+    const userData = await api(
+      `https://api.stackexchange.com/2.3/users/${USER_ID}?site=${SITE}&filter=default`,
+    );
+
+    if (!userData.items || userData.items.length === 0) {
+      throw new Error("Stack Overflow user not found");
+    }
+
+    const user = userData.items[0];
+
+    // =========================================================
+    // BASIC PROFILE DATA
+    // =========================================================
+
+    const name = user.display_name || "Stack Overflow User";
+
+    const reputation = Number(user.reputation || 0);
 
     const profileImage = user.profile_image || "";
 
-    // -----------------------------------------
+    const profileViews = Number(user.view_count || 0);
+
+    const gold = Number(user.badge_counts?.gold || 0);
+
+    const silver = Number(user.badge_counts?.silver || 0);
+
+    const bronze = Number(user.badge_counts?.bronze || 0);
+
+    // =========================================================
+    // QUESTIONS
+    // =========================================================
+
+    const questionData = await api(
+      `https://api.stackexchange.com/2.3/users/${USER_ID}/questions?site=${SITE}&pagesize=100&filter=default`,
+    );
+
+    const questions = Number(
+      questionData.total || questionData.items?.length || 0,
+    );
+
+    // =========================================================
+    // ANSWERS
+    // =========================================================
+
+    const answerData = await api(
+      `https://api.stackexchange.com/2.3/users/${USER_ID}/answers?site=${SITE}&pagesize=100&filter=default`,
+    );
+
+    const answers = Number(answerData.total || answerData.items?.length || 0);
+
+    // =========================================================
+    // PEOPLE REACHED
+    //
+    // Approximation based on question + answer scores/views.
+    // Stack Overflow does not expose the profile's exact
+    // "people reached" number through the public API.
+    // =========================================================
+
+    let peopleReached = 0;
+
+    const questionItems = questionData.items || [];
+
+    for (const question of questionItems) {
+      peopleReached += Number(question.view_count || 0);
+    }
+
+    /*
+     * If you have more than 100 questions, request additional
+     * pages so the approximation becomes more complete.
+     */
+
+    if (questionData.has_more) {
+      const maxPages = Math.min(Number(questionData.quota_remaining || 0), 10);
+
+      for (let page = 2; page <= maxPages; page++) {
+        try {
+          const pageData = await api(
+            `https://api.stackexchange.com/2.3/users/${USER_ID}/questions?site=${SITE}&page=${page}&pagesize=100&filter=default`,
+          );
+
+          for (const question of pageData.items || []) {
+            peopleReached += Number(question.view_count || 0);
+          }
+
+          if (!pageData.has_more) break;
+        } catch {
+          break;
+        }
+      }
+    }
+
+    // =========================================================
+    // VOTES CAST
+    //
+    // Stack Exchange does not expose the exact profile
+    // "votes cast" statistic as a simple user field.
+    //
+    // We therefore use the available vote counts when present.
+    // =========================================================
+
+    const upVotes = Number(user.up_vote_count || 0);
+
+    const downVotes = Number(user.down_vote_count || 0);
+
+    const votesCast = upVotes + downVotes;
+
+    // =========================================================
+    // POSTS EDITED
+    //
+    // Try to retrieve revisions made by the user.
+    // =========================================================
+
+    let postsEdited = 0;
+
+    try {
+      const revisionData = await api(
+        `https://api.stackexchange.com/2.3/users/${USER_ID}/revisions?site=${SITE}&pagesize=100&filter=default`,
+      );
+
+      postsEdited = revisionData.total || revisionData.items?.length || 0;
+    } catch {
+      postsEdited = 0;
+    }
+
+    // =========================================================
+    // HELPFUL FLAGS
+    //
+    // The public Stack Exchange API does not expose the exact
+    // profile "helpful flags" count.
+    //
+    // Keep it unavailable instead of displaying a fake number.
+    // =========================================================
+
+    const helpfulFlags = null;
+
+    // =========================================================
+    // REPUTATION HISTORY
+    // =========================================================
+
+    const reputationData = await api(
+      `https://api.stackexchange.com/2.3/users/${USER_ID}/reputation-history?site=${SITE}&pagesize=100`,
+    );
+
+    const history = reputationData.items || [];
+
+    // =========================================================
+    // RECENT REPUTATION
+    // =========================================================
+
+    const now = Math.floor(Date.now() / 1000);
+
+    const DAY = 86400;
+
+    const today = history
+      .filter((item) => now - item.creation_date <= DAY)
+      .reduce((sum, item) => sum + Number(item.reputation_change || 0), 0);
+
+    const week = history
+      .filter((item) => now - item.creation_date <= DAY * 7)
+      .reduce((sum, item) => sum + Number(item.reputation_change || 0), 0);
+
+    const month = history
+      .filter((item) => now - item.creation_date <= DAY * 30)
+      .reduce((sum, item) => sum + Number(item.reputation_change || 0), 0);
+
+    // =========================================================
+    // 30 DAY CHART
+    // =========================================================
+
+    const daily = {};
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(Date.now() - i * DAY * 1000);
+
+      const key = date.toISOString().slice(0, 10);
+
+      daily[key] = 0;
+    }
+
+    for (const item of history) {
+      const date = new Date(item.creation_date * 1000)
+        .toISOString()
+        .slice(0, 10);
+
+      if (daily[date] !== undefined) {
+        daily[date] += Number(item.reputation_change || 0);
+      }
+    }
+
+    const chartValues = Object.values(daily);
+
+    // =========================================================
+    // CHART
+    // =========================================================
+
+    const chartX = 500;
+
+    const chartY = 95;
+
+    const chartWidth = 350;
+
+    const chartHeight = 80;
+
+    const minValue = Math.min(...chartValues, 0);
+
+    const maxValue = Math.max(...chartValues, 1);
+
+    const range = maxValue - minValue || 1;
+
+    const points = chartValues
+      .map((value, index) => {
+        const x =
+          chartX + (index / Math.max(chartValues.length - 1, 1)) * chartWidth;
+
+        const y =
+          chartY + chartHeight - ((value - minValue) / range) * chartHeight;
+
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+
+    // =========================================================
+    // PEOPLE REACHED DISPLAY
+    // =========================================================
+
+    const peopleReachedDisplay =
+      peopleReached > 0 ? `~${shortNumber(peopleReached)}` : "N/A";
+
+    // =========================================================
+    // HELPFUL FLAGS DISPLAY
+    // =========================================================
+
+    const helpfulFlagsDisplay =
+      helpfulFlags === null ? "N/A" : formatNumber(helpfulFlags);
+
+    // =========================================================
     // SVG
-    // -----------------------------------------
+    // =========================================================
 
     const svg = `
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="900"
-  height="300"
-  viewBox="0 0 900 300"
+  height="390"
+  viewBox="0 0 900 390"
 >
 
   <defs>
 
     <linearGradient
-      id="bg"
+      id="background"
       x1="0"
       y1="0"
       x2="900"
-      y2="300"
+      y2="390"
       gradientUnits="userSpaceOnUse"
     >
-      <stop offset="0%" stop-color="#101418"/>
-      <stop offset="100%" stop-color="#1b2026"/>
+      <stop offset="0%" stop-color="#0D1117"/>
+      <stop offset="100%" stop-color="#171B22"/>
     </linearGradient>
 
     <linearGradient
@@ -119,7 +315,7 @@ export default async function handler(req, res) {
       y2="0"
     >
       <stop offset="0%" stop-color="#F48024"/>
-      <stop offset="100%" stop-color="#FFB870"/>
+      <stop offset="100%" stop-color="#FFB86B"/>
     </linearGradient>
 
     <clipPath id="avatarClip">
@@ -133,21 +329,19 @@ export default async function handler(req, res) {
   </defs>
 
 
-  <!-- ============================= -->
-  <!-- Background -->
-  <!-- ============================= -->
+  <!-- ===================================================== -->
+  <!-- BACKGROUND -->
+  <!-- ===================================================== -->
 
   <rect
     width="900"
-    height="300"
+    height="390"
     rx="18"
-    fill="url(#bg)"
+    fill="url(#background)"
   />
 
 
-  <!-- ============================= -->
-  <!-- Top orange line -->
-  <!-- ============================= -->
+  <!-- TOP BORDER -->
 
   <rect
     width="900"
@@ -157,15 +351,15 @@ export default async function handler(req, res) {
   />
 
 
-  <!-- ============================= -->
-  <!-- Avatar background -->
-  <!-- ============================= -->
+  <!-- ===================================================== -->
+  <!-- PROFILE IMAGE -->
+  <!-- ===================================================== -->
 
   <circle
     cx="70"
     cy="70"
-    r="45"
-    fill="#252B32"
+    r="46"
+    fill="#252A33"
   />
 
   ${
@@ -185,9 +379,9 @@ export default async function handler(req, res) {
   }
 
 
-  <!-- ============================= -->
-  <!-- Name -->
-  <!-- ============================= -->
+  <!-- ===================================================== -->
+  <!-- NAME -->
+  <!-- ===================================================== -->
 
   <text
     x="135"
@@ -200,10 +394,6 @@ export default async function handler(req, res) {
     ${escapeXml(name)}
   </text>
 
-
-  <!-- ============================= -->
-  <!-- Stack Overflow -->
-  <!-- ============================= -->
 
   <text
     x="135"
@@ -218,10 +408,6 @@ export default async function handler(req, res) {
   </text>
 
 
-  <!-- ============================= -->
-  <!-- Reputation -->
-  <!-- ============================= -->
-
   <text
     x="135"
     y="113"
@@ -231,6 +417,7 @@ export default async function handler(req, res) {
   >
     REPUTATION
   </text>
+
 
   <text
     x="215"
@@ -244,9 +431,7 @@ export default async function handler(req, res) {
   </text>
 
 
-  <!-- ============================= -->
-  <!-- Divider -->
-  <!-- ============================= -->
+  <!-- DIVIDER -->
 
   <line
     x1="30"
@@ -257,15 +442,15 @@ export default async function handler(req, res) {
   />
 
 
-  <!-- ============================= -->
-  <!-- QUESTION -->
-  <!-- ============================= -->
+  <!-- ===================================================== -->
+  <!-- ROW 1 -->
+  <!-- ===================================================== -->
 
   <text
     x="40"
     y="170"
     fill="#8B949E"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="11"
     font-weight="600"
   >
@@ -276,7 +461,7 @@ export default async function handler(req, res) {
     x="40"
     y="200"
     fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="25"
     font-weight="700"
   >
@@ -284,15 +469,11 @@ export default async function handler(req, res) {
   </text>
 
 
-  <!-- ============================= -->
-  <!-- ANSWERS -->
-  <!-- ============================= -->
-
   <text
-    x="175"
+    x="170"
     y="170"
     fill="#8B949E"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="11"
     font-weight="600"
   >
@@ -300,10 +481,10 @@ export default async function handler(req, res) {
   </text>
 
   <text
-    x="175"
+    x="170"
     y="200"
     fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="25"
     font-weight="700"
   >
@@ -311,15 +492,11 @@ export default async function handler(req, res) {
   </text>
 
 
-  <!-- ============================= -->
-  <!-- PROFILE VIEWS -->
-  <!-- ============================= -->
-
   <text
-    x="310"
+    x="300"
     y="170"
     fill="#8B949E"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="11"
     font-weight="600"
   >
@@ -327,26 +504,49 @@ export default async function handler(req, res) {
   </text>
 
   <text
-    x="310"
+    x="300"
     y="200"
     fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="25"
     font-weight="700"
   >
-    ${formatViews(views)}
+    ${shortNumber(profileViews)}
   </text>
 
 
-  <!-- ============================= -->
-  <!-- BADGES -->
-  <!-- ============================= -->
-
   <text
-    x="470"
+    x="450"
     y="170"
     fill="#8B949E"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
+    font-size="11"
+    font-weight="600"
+  >
+    PEOPLE REACHED
+  </text>
+
+  <text
+    x="450"
+    y="200"
+    fill="#FFFFFF"
+    font-family="Arial"
+    font-size="25"
+    font-weight="700"
+  >
+    ${peopleReachedDisplay}
+  </text>
+
+
+  <!-- ===================================================== -->
+  <!-- ROW 2 -->
+  <!-- ===================================================== -->
+
+  <text
+    x="40"
+    y="240"
+    fill="#8B949E"
+    font-family="Arial"
     font-size="11"
     font-weight="600"
   >
@@ -354,108 +554,242 @@ export default async function handler(req, res) {
   </text>
 
 
-  <!-- Gold -->
-
   <circle
-    cx="480"
-    cy="194"
+    cx="48"
+    cy="264"
     r="6"
     fill="#FFCC00"
   />
 
   <text
-    x="494"
-    y="199"
+    x="61"
+    y="269"
     fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="13"
   >
     ${gold}
   </text>
 
 
-  <!-- Silver -->
-
   <circle
-    cx="535"
-    cy="194"
+    cx="105"
+    cy="264"
     r="6"
     fill="#B4B8BC"
   />
 
   <text
-    x="549"
-    y="199"
+    x="118"
+    y="269"
     fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="13"
   >
     ${silver}
   </text>
 
 
-  <!-- Bronze -->
-
   <circle
-    cx="590"
-    cy="194"
+    cx="162"
+    cy="264"
     r="6"
     fill="#D28C45"
   />
 
   <text
-    x="604"
-    y="199"
+    x="175"
+    y="269"
     fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="13"
   >
     ${bronze}
   </text>
 
 
-  <!-- ============================= -->
-  <!-- Profile link -->
-  <!-- ============================= -->
+  <!-- POSTS EDITED -->
 
   <text
-    x="40"
-    y="250"
-    fill="#6E7681"
-    font-family="Arial, Helvetica, sans-serif"
+    x="250"
+    y="240"
+    fill="#8B949E"
+    font-family="Arial"
     font-size="11"
+    font-weight="600"
   >
-    stackoverflow.com/users/${USER_ID}
+    POSTS EDITED
+  </text>
+
+  <text
+    x="250"
+    y="270"
+    fill="#FFFFFF"
+    font-family="Arial"
+    font-size="25"
+    font-weight="700"
+  >
+    ${formatNumber(postsEdited)}
   </text>
 
 
-  <!-- ============================= -->
-  <!-- Live indicator -->
-  <!-- ============================= -->
-
-  <circle
-    cx="850"
-    cy="250"
-    r="5"
-    fill="#3FB950"
-  />
+  <!-- HELPFUL FLAGS -->
 
   <text
-    x="765"
-    y="255"
+    x="390"
+    y="240"
+    fill="#8B949E"
+    font-family="Arial"
+    font-size="11"
+    font-weight="600"
+  >
+    HELPFUL FLAGS
+  </text>
+
+  <text
+    x="390"
+    y="270"
+    fill="#FFFFFF"
+    font-family="Arial"
+    font-size="25"
+    font-weight="700"
+  >
+    ${helpfulFlagsDisplay}
+  </text>
+
+
+  <!-- VOTES CAST -->
+
+  <text
+    x="530"
+    y="240"
+    fill="#8B949E"
+    font-family="Arial"
+    font-size="11"
+    font-weight="600"
+  >
+    VOTES CAST
+  </text>
+
+  <text
+    x="530"
+    y="270"
+    fill="#FFFFFF"
+    font-family="Arial"
+    font-size="25"
+    font-weight="700"
+  >
+    ${formatNumber(votesCast)}
+  </text>
+
+
+  <!-- ===================================================== -->
+  <!-- CHART -->
+  <!-- ===================================================== -->
+
+  <text
+    x="500"
+    y="80"
+    fill="#8B949E"
+    font-family="Arial"
+    font-size="11"
+    font-weight="600"
+  >
+    30 DAY REPUTATION ACTIVITY
+  </text>
+
+
+  <polyline
+    points="${points}"
+    fill="none"
+    stroke="#F48024"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+
+  <line
+    x1="${chartX}"
+    y1="${chartY + chartHeight}"
+    x2="${chartX + chartWidth}"
+    y2="${chartY + chartHeight}"
+    stroke="#30363D"
+  />
+
+
+  <!-- ===================================================== -->
+  <!-- RECENT REPUTATION -->
+  <!-- ===================================================== -->
+
+  <text
+    x="40"
+    y="320"
+    fill="#8B949E"
+    font-family="Arial"
+    font-size="11"
+    font-weight="600"
+  >
+    RECENT REPUTATION
+  </text>
+
+
+  <text
+    x="40"
+    y="345"
+    fill="${today >= 0 ? "#3FB950" : "#F85149"}"
+    font-family="Arial"
+    font-size="13"
+    font-weight="700"
+  >
+    Today ${today >= 0 ? "+" : ""}${today}
+  </text>
+
+
+  <text
+    x="130"
+    y="345"
+    fill="${week >= 0 ? "#3FB950" : "#F85149"}"
+    font-family="Arial"
+    font-size="13"
+    font-weight="700"
+  >
+    7d ${week >= 0 ? "+" : ""}${week}
+  </text>
+
+
+  <text
+    x="195"
+    y="345"
+    fill="${month >= 0 ? "#3FB950" : "#F85149"}"
+    font-family="Arial"
+    font-size="13"
+    font-weight="700"
+  >
+    30d ${month >= 0 ? "+" : ""}${month}
+  </text>
+
+
+  <!-- ===================================================== -->
+  <!-- FOOTER -->
+  <!-- ===================================================== -->
+
+  <text
+    x="500"
+    y="345"
     fill="#6E7681"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="10"
   >
-    LIVE DATA
+    Stack Exchange API • Automatically updated
   </text>
 
 </svg>
 `;
 
-    // -----------------------------------------
-    // Response headers
-    // -----------------------------------------
+    // =========================================================
+    // RESPONSE
+    // =========================================================
 
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
 
@@ -469,18 +803,19 @@ export default async function handler(req, res) {
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="900"
-  height="180"
+  height="200"
 >
+
   <rect
     width="900"
-    height="180"
+    height="200"
     rx="18"
-    fill="#101418"
+    fill="#0D1117"
   />
 
   <text
     x="450"
-    y="80"
+    y="90"
     text-anchor="middle"
     fill="#F85149"
     font-family="Arial"
@@ -492,7 +827,7 @@ export default async function handler(req, res) {
 
   <text
     x="450"
-    y="115"
+    y="125"
     text-anchor="middle"
     fill="#8B949E"
     font-family="Arial"
@@ -500,6 +835,7 @@ export default async function handler(req, res) {
   >
     ${escapeXml(error.message)}
   </text>
+
 </svg>
 `;
 
