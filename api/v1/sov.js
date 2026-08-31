@@ -1,11 +1,9 @@
 import zlib from "zlib";
 
 export default async function handler(req, res) {
-  // 1. Fallback default parameters if omitted in query string
   const USER_ID = String(req.query.id || "9202118");
   const SITE = String(req.query.site || "stackoverflow");
 
-  // Prevent CORS and Caching issues
   res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");
@@ -43,8 +41,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // User Stats (Questions & Answers count)
-    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}&filter=!9_bDDxJY5`;
+    // 1. Fetch User Data
+    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}`;
     const userData = await fetchApi(userUrl);
 
     if (!userData.items || userData.items.length === 0) {
@@ -56,18 +54,18 @@ export default async function handler(req, res) {
     const questionCount = user.question_count || 0;
     const answerCount = user.answer_count || 0;
 
-    // Recent Answers with Question Titles
-    const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation&filter=!3v(.BAZ(O4)V6-1u6`;
+    // 2. Fetch Recent Answers with Question Details
+    const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation&filter=withbody`;
     const answersData = await fetchApi(answersUrl);
     const recentAnswers = answersData.items || [];
 
-    // Render Recent Answer Titles List
+    // 3. Render List
     let answersListSvg = "";
     if (recentAnswers.length > 0) {
       answersListSvg = recentAnswers
         .map((ans, idx) => {
           const yPos = 185 + idx * 28;
-          let rawTitle = ans.title || "Answered Question";
+          let rawTitle = ans.title || `Answer to Question #${ans.question_id}`;
           if (rawTitle.length > 65) {
             rawTitle = rawTitle.substring(0, 62) + "...";
           }
