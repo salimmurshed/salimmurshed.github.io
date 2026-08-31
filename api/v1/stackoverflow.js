@@ -491,7 +491,7 @@ export default async function handler(req, res) {
 
   <!-- PEOPLE REACHED -->
   <text
-    x="10"
+    x="650"
     y="165"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
@@ -502,7 +502,7 @@ export default async function handler(req, res) {
   </text>
 
   <text
-    x="10"
+    x="650"
     y="198"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
