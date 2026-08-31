@@ -489,7 +489,28 @@ export default async function handler(req, res) {
 
  
 
-  
+  <!-- PEOPLE REACHED -->
+  <text
+    x="10"
+    y="165"
+    fill="#8B949E"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="11"
+    font-weight="700"
+  >
+    PEOPLE REACHED
+  </text>
+
+  <text
+    x="10"
+    y="198"
+    fill="#FFFFFF"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="27"
+    font-weight="700"
+  >
+    ${escapeXml(profileStats.peopleReached)}
+  </text>
 
   <!-- ROW 2 STATS -->
 
@@ -555,28 +576,7 @@ export default async function handler(req, res) {
   >
     ${bronze}
   </text>
-<!-- PEOPLE REACHED -->
-  <text
-    x="650"
-    y="400"
-    fill="#8B949E"
-    font-family="Arial, Helvetica, sans-serif"
-    font-size="11"
-    font-weight="700"
-  >
-    PEOPLE REACHED
-  </text>
 
-  <text
-    x="650"
-    y="400"
-    fill="#FFFFFF"
-    font-family="Arial, Helvetica, sans-serif"
-    font-size="27"
-    font-weight="700"
-  >
-    ${escapeXml(profileStats.peopleReached)}
-  </text>
   <!-- POSTS EDITED -->
   <text
     x="300"
