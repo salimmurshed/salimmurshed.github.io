@@ -490,73 +490,73 @@ export default async function handler(req, res) {
   <!-- ROW 1 STATS -->
 
   <!-- QUESTIONS -->
-  // <text
-  //   x="40"
-  //   y="165"
-  //   fill="#8B949E"
-  //   font-family="Arial, Helvetica, sans-serif"
-  //   font-size="11"
-  //   font-weight="700"
-  // >
-  //   QUESTIONS
-  // </text>
+  <text
+    x="40"
+    y="165"
+    fill="#8B949E"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="11"
+    font-weight="700"
+  >
+    QUESTIONS
+  </text>
 
-  // <text
-  //   x="40"
-  //   y="198"
-  //   fill="#FFFFFF"
-  //   font-family="Arial, Helvetica, sans-serif"
-  //   font-size="27"
-  //   font-weight="700"
-  // >
-  //   ${number(questions)}
-  // </text>
+  <text
+    x="40"
+    y="198"
+    fill="#FFFFFF"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="27"
+    font-weight="700"
+  >
+    ${number(questions)}
+  </text>
 
-  // <!-- ANSWERS -->
-  // <text
-  //   x="240"
-  //   y="165"
-  //   fill="#8B949E"
-  //   font-family="Arial, Helvetica, sans-serif"
-  //   font-size="11"
-  //   font-weight="700"
-  // >
-  //   ANSWERS
-  // </text>
+  <!-- ANSWERS -->
+  <text
+    x="240"
+    y="165"
+    fill="#8B949E"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="11"
+    font-weight="700"
+  >
+    ANSWERS
+  </text>
 
-  // <text
-  //   x="240"
-  //   y="198"
-  //   fill="#FFFFFF"
-  //   font-family="Arial, Helvetica, sans-serif"
-  //   font-size="27"
-  //   font-weight="700"
-  // >
-  //   ${number(answers)}
-  // </text>
+  <text
+    x="240"
+    y="198"
+    fill="#FFFFFF"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="27"
+    font-weight="700"
+  >
+    ${number(answers)}
+  </text>
 
-  // <!-- PROFILE VIEWS -->
-  // <text
-  //   x="440"
-  //   y="165"
-  //   fill="#8B949E"
-  //   font-family="Arial, Helvetica, sans-serif"
-  //   font-size="11"
-  //   font-weight="700"
-  // >
-  //   PROFILE VIEWS
-  // </text>
+  <!-- PROFILE VIEWS -->
+  <text
+    x="440"
+    y="165"
+    fill="#8B949E"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="11"
+    font-weight="700"
+  >
+    PROFILE VIEWS
+  </text>
 
-  // <text
-  //   x="440"
-  //   y="198"
-  //   fill="#FFFFFF"
-  //   font-family="Arial, Helvetica, sans-serif"
-  //   font-size="27"
-  //   font-weight="700"
-  // >
-  //   ${number(profileViews)}
-  // </text>
+  <text
+    x="440"
+    y="198"
+    fill="#FFFFFF"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="27"
+    font-weight="700"
+  >
+    ${number(profileViews)}
+  </text>
 
   <!-- PEOPLE REACHED -->
   <text
