@@ -1,82 +1,75 @@
 export default async function handler(req, res) {
-  const userId = String(req.query.id || "").trim();
+  const userId = String(req.query.id || "9202118").trim();
   const site = String(req.query.site || "stackoverflow").trim();
-
-  if (!userId) {
-    return sendError(res, "Missing user ID. Use ?id=9202118");
-  }
 
   const API = "https://api.stackexchange.com/2.3";
 
-  // ---------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------
+  const USER_FILTER = "!)RL-JogHwoZuazwo6-n_WuMc";
 
-  const escapeXml = (value) =>
-    String(value ?? "")
+  // ----------------------------------------------------------
+  // Helpers
+  // ----------------------------------------------------------
+
+  function escapeXml(value) {
+    return String(value ?? "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&apos;");
+  }
 
-  const number = (value) => {
+  function formatNumber(value) {
     const n = Number(value);
 
-    if (!Number.isFinite(n)) {
-      return "—";
-    }
+    if (!Number.isFinite(n)) return "—";
 
     return new Intl.NumberFormat("en-US").format(n);
-  };
+  }
 
-  const shortNumber = (value) => {
+  function shortNumber(value) {
     const n = Number(value);
 
-    if (!Number.isFinite(n)) {
-      return "—";
-    }
+    if (!Number.isFinite(n)) return "—";
 
     if (n >= 1000000) {
       return `${(n / 1000000).toFixed(1)}M`;
     }
 
     if (n >= 1000) {
-      return `${Math.round(n / 1000)}K`;
+      return `${(n / 1000).toFixed(1)}K`;
     }
 
     return String(n);
-  };
+  }
 
   async function fetchJson(url) {
     const response = await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 Salim-Murshed-StackOverflow-Stats",
+        "User-Agent": "StackOverflow-Stats-Card",
       },
     });
 
     const text = await response.text();
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+      throw new Error(`Stack Exchange HTTP ${response.status}`);
     }
 
-    let data;
+    let json;
 
     try {
-      data = JSON.parse(text);
+      json = JSON.parse(text);
     } catch {
-      throw new Error("Stack Exchange returned invalid JSON");
+      throw new Error("Invalid Stack Exchange JSON");
     }
 
-    if (data.error_id) {
-      throw new Error(
-        `${data.error_name || "API error"}: ${data.error_message || ""}`,
-      );
+    if (json.error_id) {
+      throw new Error(`${json.error_name}: ${json.error_message}`);
     }
 
-    return data;
+    return json;
   }
 
   async function fetchHtml(url) {
@@ -93,19 +86,19 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      throw new Error(`Stack Overflow profile HTTP ${response.status}`);
+      throw new Error(`Stack Overflow HTTP ${response.status}`);
     }
 
-    return response.text();
+    return await response.text();
   }
 
   function htmlToText(html) {
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
       .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-      .replace(/<[^>]*>/g, " ")
+      .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
       .replace(/&nbsp;/gi, " ")
       .replace(/&amp;/gi, "&")
       .replace(/&quot;/gi, '"')
@@ -115,11 +108,39 @@ export default async function handler(req, res) {
       .trim();
   }
 
-  // ---------------------------------------------------------
-  // ERROR SVG
-  // ---------------------------------------------------------
+  function parseLargestNumber(matches) {
+    if (!matches || matches.length === 0) {
+      return "—";
+    }
 
-  function sendError(res, message) {
+    let largest = 0;
+    let result = matches[0];
+
+    for (const value of matches) {
+      const clean = value.replace(/~/g, "").replace(/,/g, "").trim();
+
+      const multiplier = /k$/i.test(clean)
+        ? 1000
+        : /m$/i.test(clean)
+          ? 1000000
+          : 1;
+
+      const numeric = parseFloat(clean) * multiplier;
+
+      if (Number.isFinite(numeric) && numeric > largest) {
+        largest = numeric;
+        result = value;
+      }
+    }
+
+    return result.replace(/\s+/g, "");
+  }
+
+  // ----------------------------------------------------------
+  // ERROR
+  // ----------------------------------------------------------
+
+  function sendError(message) {
     const svg = `
 <svg
   xmlns="http://www.w3.org/2000/svg"
@@ -137,16 +158,15 @@ export default async function handler(req, res) {
   <rect
     width="900"
     height="5"
-    rx="3"
     fill="#f48024"
   />
 
   <text
     x="450"
-    y="90"
+    y="85"
     text-anchor="middle"
     fill="#ffffff"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="22"
     font-weight="700"
   >
@@ -155,10 +175,10 @@ export default async function handler(req, res) {
 
   <text
     x="450"
-    y="125"
+    y="120"
     text-anchor="middle"
     fill="#f85149"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="13"
   >
     ${escapeXml(message)}
@@ -166,13 +186,13 @@ export default async function handler(req, res) {
 
   <text
     x="450"
-    y="160"
+    y="155"
     text-anchor="middle"
     fill="#8b949e"
-    font-family="Arial, Helvetica, sans-serif"
+    font-family="Arial"
     font-size="12"
   >
-    Check /api/stackoverflow?id=YOUR_USER_ID
+    User ID: ${escapeXml(userId)}
   </text>
 </svg>
 `;
@@ -185,48 +205,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    // =======================================================
-    // 1. USER API
-    //
-    // IMPORTANT:
-    // Explicit filter=default makes sure we are requesting
-    // the normal User object fields.
-    // =======================================================
+    // ========================================================
+    // USER API
+    // ========================================================
 
     const userUrl =
       `${API}/users/${encodeURIComponent(userId)}` +
       `?site=${encodeURIComponent(site)}` +
-      `&filter=default`;
+      `&filter=${encodeURIComponent(USER_FILTER)}`;
 
     const userData = await fetchJson(userUrl);
 
-    if (!Array.isArray(userData.items)) {
-      throw new Error("Invalid user API response");
-    }
-
-    if (userData.items.length === 0) {
-      throw new Error(`User ${userId} was not found on ${site}`);
+    if (!userData.items || userData.items.length === 0) {
+      throw new Error(`User ${userId} not found`);
     }
 
     const user = userData.items[0];
 
-    // =======================================================
-    // 2. READ REAL USER FIELDS
-    // =======================================================
+    // ========================================================
+    // REAL TOTALS
+    // ========================================================
 
-    const reputation = Number(user.reputation);
+    const reputation = Number(user.reputation || 0);
 
-    const questions = Number(user.question_count);
+    const questions = Number(user.question_count || 0);
 
-    const answers = Number(user.answer_count);
+    const answers = Number(user.answer_count || 0);
 
-    const profileViews = Number(user.view_count);
+    const profileViews = Number(user.view_count || 0);
 
-    const upVotes = Number(user.up_vote_count);
+    const upVotes = Number(user.up_vote_count || 0);
 
-    const downVotes = Number(user.down_vote_count);
+    const downVotes = Number(user.down_vote_count || 0);
 
-    // votes cast = up + down
     const votesCast = upVotes + downVotes;
 
     const gold = Number(user.badge_counts?.gold || 0);
@@ -235,196 +246,144 @@ export default async function handler(req, res) {
 
     const bronze = Number(user.badge_counts?.bronze || 0);
 
-    // -------------------------------------------------------
-    // IMPORTANT DEBUG CHECK
-    // -------------------------------------------------------
-
-    console.log("STACK OVERFLOW USER DATA:", {
-      userId,
-      reputation,
-      questions,
-      answers,
-      profileViews,
-      upVotes,
-      downVotes,
-      votesCast,
-      rawUser: user,
-    });
-
-    // If any required API field is genuinely missing,
-    // DO NOT silently convert it to zero.
-    if (!Number.isFinite(questions)) {
-      throw new Error("question_count missing from Stack Exchange API");
-    }
-
-    if (!Number.isFinite(answers)) {
-      throw new Error("answer_count missing from Stack Exchange API");
-    }
-
-    if (!Number.isFinite(profileViews)) {
-      throw new Error("view_count missing from Stack Exchange API");
-    }
-
-    if (!Number.isFinite(upVotes)) {
-      throw new Error("up_vote_count missing from Stack Exchange API");
-    }
-
-    if (!Number.isFinite(downVotes)) {
-      throw new Error("down_vote_count missing from Stack Exchange API");
-    }
-
-    // =======================================================
-    // 3. REPUTATION HISTORY
-    // =======================================================
-
-    let reputationToday = 0;
-    let reputationWeek = 0;
-    let reputationMonth = 0;
-
-    const daily = {};
-
-    const DAY = 86400;
-
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(Date.now() - i * DAY * 1000);
-
-      daily[d.toISOString().slice(0, 10)] = 0;
-    }
-
-    try {
-      const reputationUrl =
-        `${API}/users/${encodeURIComponent(userId)}/reputation-history` +
-        `?site=${encodeURIComponent(site)}` +
-        `&pagesize=100`;
-
-      const reputationData = await fetchJson(reputationUrl);
-
-      const history = reputationData.items || [];
-
-      const now = Math.floor(Date.now() / 1000);
-
-      reputationToday = history
-        .filter((item) => now - Number(item.creation_date) <= DAY)
-        .reduce(
-          (total, item) => total + Number(item.reputation_change || 0),
-          0,
-        );
-
-      reputationWeek = history
-        .filter((item) => now - Number(item.creation_date) <= DAY * 7)
-        .reduce(
-          (total, item) => total + Number(item.reputation_change || 0),
-          0,
-        );
-
-      reputationMonth = history
-        .filter((item) => now - Number(item.creation_date) <= DAY * 30)
-        .reduce(
-          (total, item) => total + Number(item.reputation_change || 0),
-          0,
-        );
-
-      for (const item of history) {
-        const key = new Date(Number(item.creation_date) * 1000)
-          .toISOString()
-          .slice(0, 10);
-
-        if (Object.prototype.hasOwnProperty.call(daily, key)) {
-          daily[key] += Number(item.reputation_change || 0);
-        }
-      }
-    } catch (historyError) {
-      console.error("Reputation history error:", historyError);
-    }
-
-    // =======================================================
-    // 4. PEOPLE REACHED / EDITS / FLAGS
-    //
-    // These are NOT User API fields.
-    // Try to read them from Stack Overflow profile HTML.
-    // =======================================================
+    // ========================================================
+    // PROFILE HTML
+    // ========================================================
 
     let peopleReached = "—";
     let postsEdited = "—";
     let helpfulFlags = "—";
 
     try {
-      const profileUrl =
-        user.link || `https://stackoverflow.com/users/${userId}`;
+      const profileUrl = `https://stackoverflow.com/users/${userId}`;
 
-      const profileHtml = await fetchHtml(profileUrl);
+      const html = await fetchHtml(profileUrl);
 
-      const profileText = htmlToText(profileHtml);
+      const text = htmlToText(html);
 
-      console.log("STACK OVERFLOW PROFILE TEXT:", profileText.slice(0, 5000));
+      // ------------------------------------------------------
+      // PEOPLE REACHED
+      // ------------------------------------------------------
 
-      // ---------------------------------------------
-      // People reached
-      // ---------------------------------------------
+      const peopleRegex = /(~?\s*[\d,.]+\s*[KMB]?)\s+people\s+reached/gi;
 
-      const peopleMatch = profileText.match(
-        /(~?\s*[\d,.]+(?:\s*[KMB])?)\s+people\s+reached/i,
-      );
+      const peopleMatches = [];
 
-      if (peopleMatch) {
-        peopleReached = peopleMatch[1].replace(/\s+/g, "");
+      let match;
+
+      while ((match = peopleRegex.exec(text)) !== null) {
+        peopleMatches.push(match[1]);
       }
 
-      // ---------------------------------------------
-      // Posts edited
-      // ---------------------------------------------
+      peopleReached = parseLargestNumber(peopleMatches);
 
-      const editedMatch = profileText.match(/(\d[\d,.]*)\s+posts\s+edited/i);
+      // ------------------------------------------------------
+      // POSTS EDITED
+      // ------------------------------------------------------
 
-      if (editedMatch) {
-        postsEdited = editedMatch[1];
+      const edited = text.match(/(\d[\d,]*)\s+posts\s+edited/i);
+
+      if (edited) {
+        postsEdited = edited[1];
       }
 
-      // ---------------------------------------------
-      // Helpful flags
-      // ---------------------------------------------
+      // ------------------------------------------------------
+      // HELPFUL FLAGS
+      // ------------------------------------------------------
 
-      const flagsMatch = profileText.match(/(\d[\d,.]*)\s+helpful\s+flags/i);
+      const flags = text.match(/(\d[\d,]*)\s+helpful\s+flags/i);
 
-      if (flagsMatch) {
-        helpfulFlags = flagsMatch[1];
+      if (flags) {
+        helpfulFlags = flags[1];
       }
-    } catch (profileError) {
-      console.error("Profile HTML error:", profileError);
+    } catch (e) {
+      console.error("Profile HTML error:", e.message);
     }
 
-    // =======================================================
-    // 5. CHART
-    // =======================================================
+    // ========================================================
+    // REPUTATION HISTORY
+    // ========================================================
 
-    const chartValues = Object.values(daily);
+    let today = 0;
+    let week = 0;
+    let month = 0;
 
-    const chartX = 510;
-    const chartY = 55;
-    const chartWidth = 340;
+    const daily = {};
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 86400000);
+
+      daily[date.toISOString().slice(0, 10)] = 0;
+    }
+
+    try {
+      const historyUrl =
+        `${API}/users/${userId}/reputation-history` +
+        `?site=${site}` +
+        `&pagesize=100`;
+
+      const historyData = await fetchJson(historyUrl);
+
+      const history = historyData.items || [];
+
+      const now = Math.floor(Date.now() / 1000);
+
+      today = history
+        .filter((x) => now - Number(x.creation_date) <= 86400)
+        .reduce((sum, x) => sum + Number(x.reputation_change || 0), 0);
+
+      week = history
+        .filter((x) => now - Number(x.creation_date) <= 86400 * 7)
+        .reduce((sum, x) => sum + Number(x.reputation_change || 0), 0);
+
+      month = history
+        .filter((x) => now - Number(x.creation_date) <= 86400 * 30)
+        .reduce((sum, x) => sum + Number(x.reputation_change || 0), 0);
+
+      for (const item of history) {
+        const date = new Date(Number(item.creation_date) * 1000)
+          .toISOString()
+          .slice(0, 10);
+
+        if (Object.prototype.hasOwnProperty.call(daily, date)) {
+          daily[date] += Number(item.reputation_change || 0);
+        }
+      }
+    } catch (e) {
+      console.error("Reputation history:", e.message);
+    }
+
+    // ========================================================
+    // CHART
+    // ========================================================
+
+    const values = Object.values(daily);
+
+    const chartX = 500;
+    const chartY = 60;
+    const chartWidth = 350;
     const chartHeight = 80;
 
-    const minValue = Math.min(...chartValues, 0);
+    const min = Math.min(...values, 0);
 
-    const maxValue = Math.max(...chartValues, 1);
+    const max = Math.max(...values, 1);
 
-    const range = maxValue - minValue || 1;
+    const range = max - min || 1;
 
-    const points = chartValues
+    const points = values
       .map((value, index) => {
         const x =
-          chartX + (index / Math.max(chartValues.length - 1, 1)) * chartWidth;
+          chartX + (index / Math.max(values.length - 1, 1)) * chartWidth;
 
-        const y =
-          chartY + chartHeight - ((value - minValue) / range) * chartHeight;
+        const y = chartY + chartHeight - ((value - min) / range) * chartHeight;
 
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(" ");
 
-    // =======================================================
-    // 6. SVG
-    // =======================================================
+    // ========================================================
+    // SVG
+    // ========================================================
 
     const svg = `
 <svg
@@ -455,7 +414,7 @@ export default async function handler(req, res) {
   </linearGradient>
 
   <linearGradient
-    id="accent"
+    id="orange"
     x1="0"
     y1="0"
     x2="900"
@@ -472,7 +431,7 @@ export default async function handler(req, res) {
     />
   </linearGradient>
 
-  <clipPath id="avatar">
+  <clipPath id="avatarClip">
     <circle
       cx="72"
       cy="70"
@@ -483,7 +442,7 @@ export default async function handler(req, res) {
 </defs>
 
 
-<!-- Background -->
+<!-- BACKGROUND -->
 
 <rect
   width="900"
@@ -493,17 +452,17 @@ export default async function handler(req, res) {
 />
 
 
-<!-- Accent -->
+<!-- TOP -->
 
 <rect
   width="900"
   height="5"
   rx="3"
-  fill="url(#accent)"
+  fill="url(#orange)"
 />
 
 
-<!-- Avatar -->
+<!-- AVATAR -->
 
 <circle
   cx="72"
@@ -512,30 +471,24 @@ export default async function handler(req, res) {
   fill="#252a33"
 />
 
-${
-  user.profile_image
-    ? `
 <image
   href="${escapeXml(user.profile_image)}"
   x="30"
   y="28"
   width="84"
   height="84"
-  clip-path="url(#avatar)"
+  clip-path="url(#avatarClip)"
   preserveAspectRatio="xMidYMid slice"
 />
-`
-    : ""
-}
 
 
-<!-- Name -->
+<!-- NAME -->
 
 <text
   x="140"
-  y="58"
+  y="60"
   fill="#ffffff"
-  font-family="Arial, Helvetica, sans-serif"
+  font-family="Arial"
   font-size="26"
   font-weight="700"
 >
@@ -545,9 +498,9 @@ ${
 
 <text
   x="140"
-  y="83"
+  y="85"
   fill="#f48024"
-  font-family="Arial, Helvetica, sans-serif"
+  font-family="Arial"
   font-size="13"
   font-weight="700"
   letter-spacing="1"
@@ -558,10 +511,10 @@ ${
 
 <text
   x="140"
-  y="108"
+  y="110"
   fill="#8b949e"
   font-family="Arial"
-  font-size="11"
+  font-size="12"
 >
   REPUTATION
 </text>
@@ -569,29 +522,28 @@ ${
 
 <text
   x="215"
-  y="108"
+  y="110"
   fill="#ffffff"
   font-family="Arial"
   font-size="14"
   font-weight="700"
 >
-  ${number(reputation)}
+  ${formatNumber(reputation)}
 </text>
 
 
-<!-- Chart -->
+<!-- CHART -->
 
 <text
-  x="510"
+  x="500"
   y="35"
   fill="#8b949e"
   font-family="Arial"
   font-size="11"
-  font-weight="600"
+  font-weight="700"
 >
-  30 DAY REPUTATION
+  30 DAY REPUTATION ACTIVITY
 </text>
-
 
 <polyline
   points="${points}"
@@ -602,7 +554,6 @@ ${
   stroke-linejoin="round"
 />
 
-
 <line
   x1="${chartX}"
   y1="${chartY + chartHeight}"
@@ -612,7 +563,7 @@ ${
 />
 
 
-<!-- Divider -->
+<!-- DIVIDER -->
 
 <line
   x1="30"
@@ -623,7 +574,7 @@ ${
 />
 
 
-<!-- Questions -->
+<!-- ROW 1 -->
 
 <text
   x="40"
@@ -631,7 +582,7 @@ ${
   fill="#8b949e"
   font-family="Arial"
   font-size="10"
-  font-weight="600"
+  font-weight="700"
 >
   QUESTIONS
 </text>
@@ -644,109 +595,174 @@ ${
   font-size="26"
   font-weight="700"
 >
-  ${number(questions)}
+  ${formatNumber(questions)}
 </text>
 
 
-<!-- Answers -->
-
 <text
-  x="165"
+  x="240"
   y="166"
   fill="#8b949e"
   font-family="Arial"
   font-size="10"
-  font-weight="600"
+  font-weight="700"
 >
   ANSWERS
 </text>
 
 <text
-  x="165"
+  x="240"
   y="198"
   fill="#ffffff"
   font-family="Arial"
   font-size="26"
   font-weight="700"
 >
-  ${number(answers)}
+  ${formatNumber(answers)}
 </text>
 
 
-<!-- Profile views -->
-
 <text
-  x="285"
+  x="440"
   y="166"
   fill="#8b949e"
   font-family="Arial"
   font-size="10"
-  font-weight="600"
+  font-weight="700"
 >
   PROFILE VIEWS
 </text>
 
 <text
-  x="285"
+  x="440"
   y="198"
   fill="#ffffff"
   font-family="Arial"
   font-size="26"
   font-weight="700"
 >
-  ${shortNumber(profileViews)}
+  ${formatNumber(profileViews)}
 </text>
 
 
-<!-- Votes cast -->
-
 <text
-  x="435"
+  x="650"
   y="166"
   fill="#8b949e"
   font-family="Arial"
   font-size="10"
-  font-weight="600"
+  font-weight="700"
 >
   VOTES CAST
 </text>
 
 <text
-  x="435"
+  x="650"
   y="198"
   fill="#ffffff"
   font-family="Arial"
   font-size="26"
   font-weight="700"
 >
-  ${number(votesCast)}
+  ${formatNumber(votesCast)}
 </text>
 
 
-<!-- Badges -->
+<!-- ROW 2 -->
 
 <text
-  x="610"
-  y="166"
+  x="40"
+  y="245"
   fill="#8b949e"
   font-family="Arial"
   font-size="10"
-  font-weight="600"
+  font-weight="700"
+>
+  PEOPLE REACHED
+</text>
+
+<text
+  x="40"
+  y="278"
+  fill="#ffffff"
+  font-family="Arial"
+  font-size="25"
+  font-weight="700"
+>
+  ${escapeXml(peopleReached)}
+</text>
+
+
+<text
+  x="240"
+  y="245"
+  fill="#8b949e"
+  font-family="Arial"
+  font-size="10"
+  font-weight="700"
+>
+  POSTS EDITED
+</text>
+
+<text
+  x="240"
+  y="278"
+  fill="#ffffff"
+  font-family="Arial"
+  font-size="25"
+  font-weight="700"
+>
+  ${escapeXml(postsEdited)}
+</text>
+
+
+<text
+  x="440"
+  y="245"
+  fill="#8b949e"
+  font-family="Arial"
+  font-size="10"
+  font-weight="700"
+>
+  HELPFUL FLAGS
+</text>
+
+<text
+  x="440"
+  y="278"
+  fill="#ffffff"
+  font-family="Arial"
+  font-size="25"
+  font-weight="700"
+>
+  ${escapeXml(helpfulFlags)}
+</text>
+
+
+<!-- BADGES -->
+
+<text
+  x="650"
+  y="245"
+  fill="#8b949e"
+  font-family="Arial"
+  font-size="10"
+  font-weight="700"
 >
   BADGES
 </text>
 
 
 <circle
-  cx="617"
-  cy="190"
+  cx="657"
+  cy="268"
   r="6"
   fill="#ffcc00"
 />
 
 <text
-  x="630"
-  y="195"
+  x="670"
+  y="273"
   fill="#ffffff"
   font-family="Arial"
   font-size="13"
@@ -756,15 +772,15 @@ ${
 
 
 <circle
-  cx="674"
-  cy="190"
+  cx="710"
+  cy="268"
   r="6"
   fill="#b4b8bc"
 />
 
 <text
-  x="687"
-  y="195"
+  x="723"
+  y="273"
   fill="#ffffff"
   font-family="Arial"
   font-size="13"
@@ -774,15 +790,15 @@ ${
 
 
 <circle
-  cx="735"
-  cy="190"
+  cx="770"
+  cy="268"
   r="6"
   fill="#d28c45"
 />
 
 <text
-  x="748"
-  y="195"
+  x="783"
+  y="273"
   fill="#ffffff"
   font-family="Arial"
   font-size="13"
@@ -791,169 +807,24 @@ ${
 </text>
 
 
-<!-- Impact -->
+<!-- RECENT -->
 
 <line
   x1="30"
-  y1="225"
+  y1="315"
   x2="870"
-  y2="225"
+  y2="315"
   stroke="#30363d"
 />
 
 
 <text
   x="40"
-  y="252"
-  fill="#f48024"
-  font-family="Arial"
-  font-size="12"
-  font-weight="700"
-  letter-spacing="1"
->
-  IMPACT
-</text>
-
-
-<!-- People -->
-
-<text
-  x="40"
-  y="278"
+  y="343"
   fill="#8b949e"
   font-family="Arial"
   font-size="10"
-  font-weight="600"
->
-  PEOPLE REACHED
-</text>
-
-<text
-  x="40"
-  y="308"
-  fill="#ffffff"
-  font-family="Arial"
-  font-size="24"
   font-weight="700"
->
-  ${escapeXml(peopleReached)}
-</text>
-
-
-<!-- Edited -->
-
-<text
-  x="250"
-  y="278"
-  fill="#8b949e"
-  font-family="Arial"
-  font-size="10"
-  font-weight="600"
->
-  POSTS EDITED
-</text>
-
-<text
-  x="250"
-  y="308"
-  fill="#ffffff"
-  font-family="Arial"
-  font-size="24"
-  font-weight="700"
->
-  ${escapeXml(postsEdited)}
-</text>
-
-
-<!-- Flags -->
-
-<text
-  x="450"
-  y="278"
-  fill="#8b949e"
-  font-family="Arial"
-  font-size="10"
-  font-weight="600"
->
-  HELPFUL FLAGS
-</text>
-
-<text
-  x="450"
-  y="308"
-  fill="#ffffff"
-  font-family="Arial"
-  font-size="24"
-  font-weight="700"
->
-  ${escapeXml(helpfulFlags)}
-</text>
-
-
-<!-- Up / Down -->
-
-<text
-  x="650"
-  y="278"
-  fill="#8b949e"
-  font-family="Arial"
-  font-size="10"
-  font-weight="600"
->
-  UP / DOWN
-</text>
-
-<text
-  x="650"
-  y="308"
-  fill="#3fb950"
-  font-family="Arial"
-  font-size="17"
-  font-weight="700"
->
-  ${number(upVotes)}
-</text>
-
-<text
-  x="705"
-  y="308"
-  fill="#8b949e"
-  font-family="Arial"
-  font-size="17"
->
-  /
-</text>
-
-<text
-  x="725"
-  y="308"
-  fill="#f85149"
-  font-family="Arial"
-  font-size="17"
-  font-weight="700"
->
-  ${number(downVotes)}
-</text>
-
-
-<!-- Recent reputation -->
-
-<line
-  x1="30"
-  y1="335"
-  x2="870"
-  y2="335"
-  stroke="#30363d"
-/>
-
-
-<text
-  x="40"
-  y="360"
-  fill="#8b949e"
-  font-family="Arial"
-  font-size="10"
-  font-weight="600"
 >
   RECENT REPUTATION
 </text>
@@ -961,65 +832,66 @@ ${
 
 <text
   x="40"
-  y="388"
+  y="370"
   fill="#3fb950"
   font-family="Arial"
   font-size="12"
   font-weight="700"
 >
-  Today ${reputationToday >= 0 ? "+" : ""}${reputationToday}
+  Today ${today >= 0 ? "+" : ""}${today}
 </text>
 
 
 <text
   x="125"
-  y="388"
+  y="370"
   fill="#3fb950"
   font-family="Arial"
   font-size="12"
   font-weight="700"
 >
-  7d ${reputationWeek >= 0 ? "+" : ""}${reputationWeek}
+  7d ${week >= 0 ? "+" : ""}${week}
 </text>
 
 
 <text
   x="185"
-  y="388"
+  y="370"
   fill="#3fb950"
   font-family="Arial"
   font-size="12"
   font-weight="700"
 >
-  30d ${reputationMonth >= 0 ? "+" : ""}${reputationMonth}
+  30d ${month >= 0 ? "+" : ""}${month}
 </text>
 
 
 <text
-  x="510"
-  y="388"
+  x="500"
+  y="370"
   fill="#6e7681"
   font-family="Arial"
   font-size="10"
 >
-  Stack Exchange API • ${escapeXml(site)}
+  Stack Exchange API • Automatically updated
 </text>
 
 </svg>
 `;
 
-    // =======================================================
+    // ========================================================
     // RESPONSE
-    // =======================================================
+    // ========================================================
 
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
 
-    res.setHeader("Cache-Control", "public, max-age=1800, s-maxage=1800");
+    // Don't cache during testing.
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 
     return res.status(200).send(svg);
   } catch (error) {
-    console.error("STACK OVERFLOW CARD ERROR:", error);
+    console.error(error);
 
-    return sendError(res, error.message || "Unknown error");
+    return sendError(error.message || "Unknown error");
   }
 }
