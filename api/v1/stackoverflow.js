@@ -80,13 +80,49 @@ export default async function handler(req, res) {
   }
 
   // =========================================================
+  // CUSTOM FILTER
+  //
+  // IMPORTANT: the default /users/{id} response does NOT
+  // include question_count, answer_count, up_vote_count,
+  // down_vote_count, or view_count — those fields are simply
+  // missing from the default filter, not actually zero. We
+  // build a filter at runtime (via /filters/create) that adds
+  // them on top of the "default" base filter, so we get the
+  // full user object instead of the stripped-down one.
+  // =========================================================
+
+  async function getUserFilter() {
+    const includeFields = [
+      "user.answer_count",
+      "user.question_count",
+      "user.up_vote_count",
+      "user.down_vote_count",
+      "user.view_count",
+    ];
+
+    const url =
+      `${API}/filters/create` +
+      `?include=${encodeURIComponent(includeFields.join(";"))}` +
+      `&base=default&unsafe=false`;
+
+    try {
+      const data = await getJson(url);
+      return data.items?.[0]?.filter || "";
+    } catch (error) {
+      console.error("Filter creation:", error.message);
+      return ""; // fall back to the default filter if this fails
+    }
+  }
+
+  // =========================================================
   // GET USER
   // =========================================================
 
-  async function getUser() {
+  async function getUser(filter) {
     const url =
       `${API}/users/${encodeURIComponent(USER_ID)}` +
-      `?site=${encodeURIComponent(SITE)}`;
+      `?site=${encodeURIComponent(SITE)}` +
+      (filter ? `&filter=${encodeURIComponent(filter)}` : "");
 
     const data = await getJson(url);
 
@@ -146,8 +182,10 @@ export default async function handler(req, res) {
   // =========================================================
 
   try {
+    const userFilter = await getUserFilter();
+
     const [user, reputationHistory, topTags] = await Promise.all([
-      getUser(),
+      getUser(userFilter),
       getReputation(),
       getTopTags(),
     ]);
