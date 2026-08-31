@@ -17,6 +17,16 @@ export default async function handler(req, res) {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&apos;");
 
+  // HTML Entity decoder for Stack Overflow Titles (e.g., &quot; to ")
+  const decodeHtmlEntities = (str) =>
+    String(str ?? "")
+      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
+
   async function fetchApi(endpoint) {
     const response = await fetch(endpoint, {
       headers: {
@@ -41,8 +51,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Fetch User Data
-    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}`;
+    // 1. Fetch User Data with Filter for exact question/answer counts
+    const userUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}?site=${encodeURIComponent(SITE)}&filter=!nNPvSN0Z5e`;
     const userData = await fetchApi(userUrl);
 
     if (!userData.items || userData.items.length === 0) {
@@ -51,23 +61,24 @@ export default async function handler(req, res) {
 
     const user = userData.items[0];
     const name = user.display_name || "User";
-    const questionCount = user.question_count || 0;
-    const answerCount = user.answer_count || 0;
+    const questionCount = user.question_count ?? 0;
+    const answerCount = user.answer_count ?? 0;
 
     // 2. Fetch Recent Answers
     const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation`;
     const answersData = await fetchApi(answersUrl);
     const recentAnswers = answersData.items || [];
 
-    // 3. Fetch Question Titles for those Answers
+    // 3. Fetch Real Question Titles for those Answers
     let questionMap = {};
     if (recentAnswers.length > 0) {
       const qIds = recentAnswers.map((a) => a.question_id).join(";");
-      const qUrl = `https://api.stackexchange.com/2.3/questions/${qIds}?site=${encodeURIComponent(SITE)}`;
+      // filter=!gB.D*Yv.y. completely returns title and core details safely
+      const qUrl = `https://api.stackexchange.com/2.3/questions/${qIds}?site=${encodeURIComponent(SITE)}&filter=!gB.D*Yv.y.`;
       const qData = await fetchApi(qUrl);
       if (qData.items) {
         qData.items.forEach((q) => {
-          questionMap[q.question_id] = q.title;
+          questionMap[q.question_id] = decodeHtmlEntities(q.title);
         });
       }
     }
