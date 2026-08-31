@@ -80,15 +80,15 @@ export default async function handler(req, res) {
   }
 
   // =========================================================
-  // CUSTOM FILTER
+  // CUSTOM FILTER (best-effort)
   //
-  // IMPORTANT: the default /users/{id} response does NOT
-  // include question_count, answer_count, up_vote_count,
-  // down_vote_count, or view_count — those fields are simply
-  // missing from the default filter, not actually zero. We
-  // build a filter at runtime (via /filters/create) that adds
-  // them on top of the "default" base filter, so we get the
-  // full user object instead of the stripped-down one.
+  // Some /users/{id} fields (view_count, up_vote_count,
+  // down_vote_count) require a non-default filter to appear.
+  // We try to build one via /filters/create. If this call
+  // fails for any reason (network hiccup, rate limit, cold
+  // start), we DON'T let it break the whole card — we just
+  // mark those specific fields as unavailable ("—") instead
+  // of silently showing a false "0".
   // =========================================================
 
   async function getUserFilter() {
@@ -107,10 +107,16 @@ export default async function handler(req, res) {
 
     try {
       const data = await getJson(url);
-      return data.items?.[0]?.filter || "";
+      const filter = data.items?.[0]?.filter || "";
+
+      if (!filter) {
+        console.error("Filter creation returned no filter string");
+      }
+
+      return filter;
     } catch (error) {
-      console.error("Filter creation:", error.message);
-      return ""; // fall back to the default filter if this fails
+      console.error("Filter creation failed:", error.message);
+      return "";
     }
   }
 
@@ -131,6 +137,45 @@ export default async function handler(req, res) {
     }
 
     return data.items[0];
+  }
+
+  // =========================================================
+  // QUESTION / ANSWER COUNTS  (NEW — do not depend on the
+  // custom filter at all)
+  //
+  // The built-in "total" filter is a permanent, documented
+  // Stack Exchange filter name that works on ANY list endpoint
+  // and just returns {total: N}. It needs no filter-creation
+  // step and cannot silently omit fields, so this is the most
+  // reliable way to get these two counts no matter what.
+  // =========================================================
+
+  async function getQuestionCount() {
+    const url =
+      `${API}/users/${encodeURIComponent(USER_ID)}/questions` +
+      `?site=${encodeURIComponent(SITE)}&filter=total`;
+
+    try {
+      const data = await getJson(url);
+      return Number(data.total || 0);
+    } catch (error) {
+      console.error("Question count:", error.message);
+      return null; // null = genuinely unknown, distinct from a real 0
+    }
+  }
+
+  async function getAnswerCount() {
+    const url =
+      `${API}/users/${encodeURIComponent(USER_ID)}/answers` +
+      `?site=${encodeURIComponent(SITE)}&filter=total`;
+
+    try {
+      const data = await getJson(url);
+      return Number(data.total || 0);
+    } catch (error) {
+      console.error("Answer count:", error.message);
+      return null;
+    }
   }
 
   // =========================================================
@@ -183,24 +228,55 @@ export default async function handler(req, res) {
 
   try {
     const userFilter = await getUserFilter();
+    const filterAvailable = Boolean(userFilter);
 
-    const [user, reputationHistory, topTags] = await Promise.all([
+    const [
+      user,
+      reputationHistory,
+      topTags,
+      questionCountResult,
+      answerCountResult,
+    ] = await Promise.all([
       getUser(userFilter),
       getReputation(),
       getTopTags(),
+      getQuestionCount(),
+      getAnswerCount(),
     ]);
 
     // =======================================================
-    // CORE STATS — all straight from the API, nothing scraped
+    // CORE STATS
+    //
+    // Questions/Answers ALWAYS come from the dedicated
+    // total-filter calls (reliable regardless of the custom
+    // filter's success). View/vote counts depend on the
+    // custom filter — when that filter failed, we show "—"
+    // instead of a false "0".
     // =======================================================
 
     const reputation = Number(user.reputation || 0);
-    const questions = Number(user.question_count || 0);
-    const answers = Number(user.answer_count || 0);
-    const profileViews = Number(user.view_count || 0);
+
+    const questions =
+      questionCountResult !== null
+        ? questionCountResult
+        : Number(user.question_count || 0);
+
+    const answers =
+      answerCountResult !== null
+        ? answerCountResult
+        : Number(user.answer_count || 0);
+
+    const hasVoteViewData =
+      filterAvailable &&
+      (user.view_count !== undefined ||
+        user.up_vote_count !== undefined ||
+        user.down_vote_count !== undefined);
+
+    const profileViews = hasVoteViewData ? Number(user.view_count || 0) : null;
     const upVotes = Number(user.up_vote_count || 0);
     const downVotes = Number(user.down_vote_count || 0);
-    const votesCast = upVotes + downVotes;
+    const votesCast = hasVoteViewData ? upVotes + downVotes : null;
+
     const gold = Number(user.badge_counts?.gold || 0);
     const silver = Number(user.badge_counts?.silver || 0);
     const bronze = Number(user.badge_counts?.bronze || 0);
@@ -430,10 +506,10 @@ export default async function handler(req, res) {
   <text x="255" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${number(answers)}</text>
 
   <text x="470" y="167" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">PROFILE VIEWS</text>
-  <text x="470" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${number(profileViews)}</text>
+  <text x="470" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${profileViews === null ? "—" : number(profileViews)}</text>
 
   <text x="685" y="167" fill="#8B949E" font-family="Arial" font-size="11" font-weight="700">VOTES CAST</text>
-  <text x="685" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${number(votesCast)}</text>
+  <text x="685" y="200" fill="#FFFFFF" font-family="Arial" font-size="28" font-weight="700">${votesCast === null ? "—" : number(votesCast)}</text>
 
   <!-- Divider -->
   <line x1="30" y1="228" x2="870" y2="228" stroke="#30363D" />
