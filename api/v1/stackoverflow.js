@@ -491,7 +491,7 @@ export default async function handler(req, res) {
 
   <!-- PEOPLE REACHED -->
   <text
-    x="10"
+    x="40"
     y="165"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
@@ -502,7 +502,7 @@ export default async function handler(req, res) {
   </text>
 
   <text
-    x="10"
+    x="40"
     y="198"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
@@ -580,7 +580,7 @@ export default async function handler(req, res) {
   <!-- POSTS EDITED -->
   <text
     x="300"
-    y="245"
+    y="165"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
     font-size="11"
@@ -591,7 +591,7 @@ export default async function handler(req, res) {
 
   <text
     x="300"
-    y="280"
+    y="198"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
     font-size="27"
@@ -603,7 +603,7 @@ export default async function handler(req, res) {
   <!-- HELPFUL FLAGS -->
   <text
     x="500"
-    y="245"
+    y="165"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
     font-size="11"
@@ -614,7 +614,7 @@ export default async function handler(req, res) {
 
   <text
     x="500"
-    y="280"
+    y="198"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
     font-size="27"
@@ -626,7 +626,7 @@ export default async function handler(req, res) {
   <!-- VOTES CAST -->
   <text
     x="700"
-    y="245"
+    y="165"
     fill="#8B949E"
     font-family="Arial, Helvetica, sans-serif"
     font-size="11"
@@ -637,7 +637,7 @@ export default async function handler(req, res) {
 
   <text
     x="700"
-    y="280"
+    y="198"
     fill="#FFFFFF"
     font-family="Arial, Helvetica, sans-serif"
     font-size="27"
