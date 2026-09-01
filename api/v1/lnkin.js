@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   );
 
   // 1. Get userId / username from query parameters
-  const { userId } = req.query;
+  const userId = req.query.userId || req.query.query;
 
   if (!userId) {
     return res.status(400).send(`
