@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     const answerCount = aRes?.total ?? (user.answer_count || 0);
 
     // 3. Fetch Recent Answers
-    const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=5&order=desc&sort=creation`;
+    const answersUrl = `https://api.stackexchange.com/2.3/users/${encodeURIComponent(USER_ID)}/answers?site=${encodeURIComponent(SITE)}&page=1&pagesize=20&order=desc&sort=creation`;
     const answersData = await fetchApi(answersUrl);
     const recentAnswers = answersData?.items || [];
 

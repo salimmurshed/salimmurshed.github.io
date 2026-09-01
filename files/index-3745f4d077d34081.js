@@ -1005,6 +1005,167 @@
           }),
         });
       }
+      //stat
+
+      function stat() {
+        let [n, u] = (0, r.useState)(null);
+        let [items, setItems] = (0, r.useState)([]);
+
+        (0, r.useEffect)(() => {
+          setItems([
+            {
+              src: "https://salimmurshed.vercel.app/api/v1/stackoverflow?id=9202118&site=stackoverflow&v=1",
+              alt: "Salim Murshed Stack Overflow Statistics",
+              caption: "Stack Overflow Statistics",
+              widthClass: "w-full",
+            },
+            {
+              src: "https://salimmurshed.vercel.app/api/v1/sov?id=9202118",
+              alt: "Salim Murshed Stack Overflow Statistics",
+              caption: "Stack Overflow Overview",
+              widthClass: "w-full",
+            },
+            {
+              src: "https://streak-stats.demolab.com?user=salimmurshed&theme=radical",
+              alt: "GitHub Streak Stats",
+              caption: "GitHub Streak Stats",
+              widthClass: "w-full",
+            },
+            {
+              src: "https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=salimmurshed&theme=radical",
+              alt: "GitHub Profile Details",
+              caption: "GitHub Profile Details",
+              widthClass: "w-full",
+            },
+            {
+              src: "https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=salimmurshed&theme=radical",
+              alt: "Repos Per Language",
+              caption: "Repos Per Language",
+              widthClass: "w-full md:w-[48%]",
+            },
+            {
+              src: "https://github-profile-summary-cards.vercel.app/api/cards/most-commit-language?username=salimmurshed&theme=radical",
+              alt: "Most Commit Language",
+              caption: "Most Commit Language",
+              widthClass: "w-full md:w-[48%]",
+            },
+            {
+              src: "https://github-profile-summary-cards.vercel.app/api/cards/productive-time?username=salimmurshed&theme=radical&utcOffset=6",
+              alt: "Productive Time",
+              caption: "Productive Time",
+              widthClass: "w-full md:w-[48%]",
+            },
+            {
+              src: "https://github-profile-summary-cards.vercel.app/api/cards/stats?username=salimmurshed&theme=radical",
+              alt: "GitHub Stats",
+              caption: "GitHub Stats",
+              widthClass: "w-full md:w-[48%]",
+            },
+          ]);
+        }, []);
+
+        (0, r.useEffect)(() => {
+          if (n === null || items.length === 0) return;
+          let e = (e) => {
+            if (e.key === "Escape") u(null);
+            if (e.key === "ArrowRight") u((n + 1) % items.length);
+            if (e.key === "ArrowLeft") u((n - 1 + items.length) % items.length);
+          };
+          window.addEventListener("keydown", e);
+          return () => window.removeEventListener("keydown", e);
+        }, [n, items.length]);
+
+        return (0, s.jsxs)("div", {
+          className: "w-full max-w-4xl mx-auto p-4",
+          children: [
+            (0, s.jsx)("ul", {
+              className: "flex flex-wrap justify-center items-center gap-4",
+              "aria-label": "Statistics Cards",
+              children: items.map((e, t) =>
+                (0, s.jsx)(
+                  "li",
+                  {
+                    className: `${e.widthClass} shrink-0 flex justify-center`,
+                    children: (0, s.jsx)("button", {
+                      type: "button",
+                      className:
+                        "group relative block w-full overflow-hidden rounded border border-slate-200/10 bg-slate-900/20 transition hover:border-slate-200/30",
+                      onClick: () => u(t),
+                      "aria-label": "Open image: ".concat(e.caption || ""),
+                      children: (0, s.jsx)("img", {
+                        className:
+                          "w-full h-auto object-contain transition duration-200 group-hover:scale-102",
+                        src: e.src,
+                        alt: e.alt || "",
+                        loading: "lazy",
+                      }),
+                    }),
+                  },
+                  t,
+                ),
+              ),
+            }),
+            n !== null &&
+              items[n] &&
+              (0, s.jsx)("div", {
+                className:
+                  "fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 p-4",
+                role: "dialog",
+                "aria-modal": "true",
+                onClick: () => u(null),
+                children: (0, s.jsxs)("div", {
+                  className:
+                    "relative max-h-full max-w-4xl flex flex-col items-center",
+                  onClick: (e) => e.stopPropagation(),
+                  children: [
+                    (0, s.jsx)("img", {
+                      className: "max-h-[85vh] w-auto rounded object-contain",
+                      src: items[n].src,
+                      alt: items[n].alt || "",
+                    }),
+                    (0, s.jsx)("p", {
+                      className: "mt-2 text-center text-sm text-slate-300",
+                      children: items[n].caption || "",
+                    }),
+                    (0, s.jsx)("button", {
+                      type: "button",
+                      className:
+                        "absolute -top-10 right-0 text-sm font-medium text-slate-300 hover:text-slate-100",
+                      onClick: () => u(null),
+                      "aria-label": "Close",
+                      children: (0, s.jsx)(o.Z, {
+                        use: "x",
+                        className: "h-5 w-5",
+                      }),
+                    }),
+                    (0, s.jsx)("button", {
+                      type: "button",
+                      className:
+                        "absolute left-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-100 bg-black/40 p-1.5 rounded-full",
+                      onClick: () => u((n - 1 + items.length) % items.length),
+                      "aria-label": "Previous image",
+                      children: (0, s.jsx)(o.Z, {
+                        use: "chevron-left",
+                        className: "h-6 w-6",
+                      }),
+                    }),
+                    (0, s.jsx)("button", {
+                      type: "button",
+                      className:
+                        "absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-100 bg-black/40 p-1.5 rounded-full",
+                      onClick: () => u((n + 1) % items.length),
+                      "aria-label": "Next image",
+                      children: (0, s.jsx)(o.Z, {
+                        use: "chevron-right",
+                        className: "h-6 w-6",
+                      }),
+                    }),
+                  ],
+                }),
+              }),
+          ],
+        });
+      }
       function gtxx() {
         let [n, u] = (0, r.useState)(null);
         let [items, setItems] = (0, r.useState)([]);
@@ -1663,6 +1824,12 @@
             heading: "Gallery",
             label: "Image gallery",
             component: (0, s.jsx)(gtxx, {}),
+          },
+          ,
+          {
+            heading: "Statistic",
+            label: "Image gallery",
+            component: (0, s.jsx)(stat, {}),
           },
         ];
         return (0, s.jsxs)("div", {
