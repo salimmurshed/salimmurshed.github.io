@@ -5,6 +5,9 @@
     },
     "api/v1/sov.js": {
       "maxDuration": 10
+    },
+    "api/v1/lnkin.js": {
+      "maxDuration": 10
     }
   }
 }
