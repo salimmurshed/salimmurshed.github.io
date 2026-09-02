@@ -8,6 +8,9 @@
     },
     "api/v1/lnkin.js": {
       "maxDuration": 10
+    },
+    "api/v1/github-stats.js": {
+      "maxDuration": 10
     }
   }
 }
