@@ -162,38 +162,34 @@ export default async function handler(req, res) {
       
       <rect width="495" height="195" rx="10" fill="#141321"/>
       
-      <!-- Total Contributions -->
+      <!-- Left: Total Contributions (উপরে এলাইনড, তারিখ ছাড়া) -->
       <g transform="translate(10, 0)">
-        <text x="70" y="85" text-anchor="middle" class="text bold pink" font-size="42">${totalContributions.toLocaleString()}</text>
-        <text x="70" y="122" text-anchor="middle" class="text pink" font-size="16">Total Contributions</text>
+        <text x="70" y="72" text-anchor="middle" class="text bold pink" font-size="42">${totalContributions.toLocaleString()}</text>
+        <text x="70" y="108" text-anchor="middle" class="text pink" font-size="16">Total Contributions</text>
       </g>
 
-      <line x1="165" y1="20" x2="165" y2="150" stroke="#44415C" stroke-opacity="0.8"/>
+      <line x1="165" y1="25" x2="165" y2="160" stroke="#44415C" stroke-opacity="0.8"/>
 
-      <!-- Current Streak (সার্কেল, আগুন, সংখ্যা ও লেখাকে একবারে নিচে তারিখের ওপরে বসানো হয়েছে) -->
+      <!-- Middle: Current Streak & Bottom Date -->
       <g transform="translate(170, 0)">
-        <circle cx="77" cy="88" r="38" fill="#141321" stroke="#E94B8A" stroke-width="4"/>
+        <circle cx="77" cy="62" r="38" fill="#141321" stroke="#E94B8A" stroke-width="4"/>
         
-        <g transform="translate(68, 43) scale(0.6)">
+        <g transform="translate(68, 17) scale(0.6)">
           <path d="M12 0C7.5 3 6.3 6.7 6 9c-.3 2.3.9 3.6 1 4.5.1.9-.8.7-1.1-.1s-1.8-3.4-1.8-6.4C1 8.8 0 11 0 13.5 0 17 2 20 6.5 20S12 17.5 12 14c0-3.1-2.2-6.6-2.2-6.6C12 7.7 13 8.8 13.2 11c1 2.2 2 3.8 2.2 6.1C16.8 18.2 18 16 18 13.5 18 9.5 15.5 3 12 0z" fill="#E94B8A"/>
         </g>
         
-        <text x="77" y="98" text-anchor="middle" class="text bold yellow" font-size="30">${currentStreakCount}</text>
-        
-        <!-- তারিখের ঠিক ওপরের লাইনে 'Current Streak' -->
-        <text x="77" y="148" text-anchor="middle" class="text bold yellow" font-size="16">Current Streak</text>
+        <text x="77" y="72" text-anchor="middle" class="text bold yellow" font-size="30">${currentStreakCount}</text>
+        <text x="77" y="122" text-anchor="middle" class="text bold yellow" font-size="16">Current Streak</text>
+        <text x="77" y="152" text-anchor="middle" class="text light-blue" font-size="13.5">${overallDateRange}</text>
       </g>
 
-      <line x1="330" y1="20" x2="330" y2="150" stroke="#44415C" stroke-opacity="0.8"/>
+      <line x1="330" y1="25" x2="330" y2="160" stroke="#44415C" stroke-opacity="0.8"/>
 
-      <!-- Longest Streak -->
+      <!-- Right: Longest Streak (উপরে এলাইনড, তারিখ ছাড়া) -->
       <g transform="translate(335, 0)">
-        <text x="70" y="85" text-anchor="middle" class="text bold pink" font-size="42">${longestStreak}</text>
-        <text x="70" y="122" text-anchor="middle" class="text pink" font-size="16">Longest Streak</text>
+        <text x="70" y="72" text-anchor="middle" class="text bold pink" font-size="42">${longestStreak}</text>
+        <text x="70" y="108" text-anchor="middle" class="text pink" font-size="16">Longest Streak</text>
       </g>
-
-      <!-- কার্ডের একদম নিচের তারিখ -->
-      <text x="247" y="176" text-anchor="middle" class="text light-blue" font-size="13.5">${overallDateRange}</text>
     </svg>
     `;
 
