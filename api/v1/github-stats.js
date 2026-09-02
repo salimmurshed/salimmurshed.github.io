@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-function formatDate(dateStr) {
+function formatDate(dateStr, includeYear = true) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "";
@@ -23,7 +23,7 @@ function formatDate(dateStr) {
   const day = d.getUTCDate();
   const year = d.getUTCFullYear();
 
-  return `${month} ${day}, ${year}`;
+  return includeYear ? `${month} ${day}, ${year}` : `${month} ${day}`;
 }
 
 export default async function handler(req, res) {
@@ -111,18 +111,31 @@ export default async function handler(req, res) {
 
     allDays.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    // Longest & Current Streak ক্যালকুলেশন
     let longestStreak = 0;
+    let longestStreakStart = null;
+    let longestStreakEnd = null;
+
     let currentStreakCount = 0;
+    let currentStreakStart = null;
+    let currentStreakEnd = null;
+
     let tempStreakCount = 0;
+    let tempStreakStart = null;
 
     for (const day of allDays) {
       if (day.contributionCount > 0) {
+        if (tempStreakCount === 0) tempStreakStart = day.date;
         tempStreakCount++;
-        if (tempStreakCount > longestStreak) {
+
+        if (tempStreakCount >= longestStreak) {
           longestStreak = tempStreakCount;
+          longestStreakStart = tempStreakStart;
+          longestStreakEnd = day.date;
         }
       } else {
         tempStreakCount = 0;
+        tempStreakStart = null;
       }
     }
 
@@ -141,15 +154,38 @@ export default async function handler(req, res) {
       (allDays[idx].date === todayStr || allDays[idx].date === yesterdayStr)
     ) {
       if (allDays[idx].contributionCount > 0) {
+        currentStreakEnd = allDays[idx].date;
+        currentStreakCount = 0;
+
         while (idx >= 0 && allDays[idx].contributionCount > 0) {
+          currentStreakStart = allDays[idx].date;
           currentStreakCount++;
           idx--;
         }
       }
     }
 
-    const overallDateRange = `${formatDate(joinedDate)} - Present`;
+    // তারিখের ফরম্যাট নির্ধারণ
+    const totalContrRange = `${formatDate(joinedDate, true)} - Present`;
 
+    const currentStreakRange =
+      currentStreakCount > 0
+        ? `${formatDate(currentStreakStart, false)} - ${formatDate(currentStreakEnd, false)}`
+        : "No Active Streak";
+
+    let longestStreakRange = "No Streak";
+    if (longestStreak > 0 && longestStreakStart && longestStreakEnd) {
+      const startY = new Date(longestStreakStart).getUTCFullYear();
+      const endY = new Date(longestStreakEnd).getUTCFullYear();
+
+      if (startY === endY) {
+        longestStreakRange = `${formatDate(longestStreakStart, false)}, ${startY} - ${formatDate(longestStreakEnd, true)}`;
+      } else {
+        longestStreakRange = `${formatDate(longestStreakStart, true)} - ${formatDate(longestStreakEnd, true)}`;
+      }
+    }
+
+    // ইমেজ অনুযায়ী হুবহু SVG পজিশনিং
     const svg = `
     <svg width="495" height="195" viewBox="0 0 495 195" fill="none" xmlns="http://www.w3.org/2000/svg">
       <style>
@@ -162,33 +198,40 @@ export default async function handler(req, res) {
       
       <rect width="495" height="195" rx="10" fill="#141321"/>
       
-      <!-- Left: Total Contributions (উপরে এলাইনড, তারিখ ছাড়া) -->
+      <!-- Total Contributions -->
       <g transform="translate(10, 0)">
-        <text x="70" y="72" text-anchor="middle" class="text bold pink" font-size="42">${totalContributions.toLocaleString()}</text>
-        <text x="70" y="108" text-anchor="middle" class="text pink" font-size="16">Total Contributions</text>
+        <text x="70" y="76" text-anchor="middle" class="text bold pink" font-size="40">${totalContributions.toLocaleString()}</text>
+        <text x="70" y="110" text-anchor="middle" class="text pink" font-size="15">Total Contributions</text>
+        <text x="70" y="142" text-anchor="middle" class="text light-blue" font-size="13">${totalContrRange}</text>
       </g>
 
-      <line x1="165" y1="25" x2="165" y2="160" stroke="#44415C" stroke-opacity="0.8"/>
+      <line x1="165" y1="28" x2="165" y2="162" stroke="#44415C" stroke-opacity="0.8"/>
 
-      <!-- Middle: Current Streak & Bottom Date -->
+      <!-- Current Streak -->
       <g transform="translate(170, 0)">
-        <circle cx="77" cy="62" r="38" fill="#141321" stroke="#E94B8A" stroke-width="4"/>
+        <!-- মেইন সার্কেল -->
+        <circle cx="77" cy="70" r="40" fill="#141321" stroke="#E94B8A" stroke-width="4.5"/>
         
-        <g transform="translate(68, 17) scale(0.6)">
+        <!-- কাট-আউট আইকন এফেক্ট (গ্যাপ তৈরি করার জন্য ছোট সার্কেল) -->
+        <circle cx="77" cy="30" r="9" fill="#141321"/>
+
+        <!-- আগুন আইকন -->
+        <g transform="translate(69, 21) scale(0.55)">
           <path d="M12 0C7.5 3 6.3 6.7 6 9c-.3 2.3.9 3.6 1 4.5.1.9-.8.7-1.1-.1s-1.8-3.4-1.8-6.4C1 8.8 0 11 0 13.5 0 17 2 20 6.5 20S12 17.5 12 14c0-3.1-2.2-6.6-2.2-6.6C12 7.7 13 8.8 13.2 11c1 2.2 2 3.8 2.2 6.1C16.8 18.2 18 16 18 13.5 18 9.5 15.5 3 12 0z" fill="#E94B8A"/>
         </g>
         
-        <text x="77" y="72" text-anchor="middle" class="text bold yellow" font-size="30">${currentStreakCount}</text>
-        <text x="77" y="122" text-anchor="middle" class="text bold yellow" font-size="16">Current Streak</text>
-        <text x="77" y="152" text-anchor="middle" class="text light-blue" font-size="13.5">${overallDateRange}</text>
+        <text x="77" y="80" text-anchor="middle" class="text bold yellow" font-size="32">${currentStreakCount}</text>
+        <text x="77" y="132" text-anchor="middle" class="text bold yellow" font-size="15">Current Streak</text>
+        <text x="77" y="156" text-anchor="middle" class="text light-blue" font-size="13">${currentStreakRange}</text>
       </g>
 
-      <line x1="330" y1="25" x2="330" y2="160" stroke="#44415C" stroke-opacity="0.8"/>
+      <line x1="330" y1="28" x2="330" y2="162" stroke="#44415C" stroke-opacity="0.8"/>
 
-      <!-- Right: Longest Streak (উপরে এলাইনড, তারিখ ছাড়া) -->
+      <!-- Longest Streak -->
       <g transform="translate(335, 0)">
-        <text x="70" y="72" text-anchor="middle" class="text bold pink" font-size="42">${longestStreak}</text>
-        <text x="70" y="108" text-anchor="middle" class="text pink" font-size="16">Longest Streak</text>
+        <text x="70" y="76" text-anchor="middle" class="text bold pink" font-size="40">${longestStreak}</text>
+        <text x="70" y="110" text-anchor="middle" class="text pink" font-size="15">Longest Streak</text>
+        <text x="70" y="142" text-anchor="middle" class="text light-blue" font-size="13">${longestStreakRange}</text>
       </g>
     </svg>
     `;
