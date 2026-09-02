@@ -111,7 +111,7 @@ export default async function handler(req, res) {
 
     allDays.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Longest & Current Streak ক্যালকুলেশন
+    // Longest & Current Streak গণনা
     let longestStreak = 0;
     let longestStreakStart = null;
     let longestStreakEnd = null;
@@ -165,7 +165,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // তারিখের ফরম্যাট নির্ধারণ
+    // তিনটি টেক্সটের নিজস্ব ডায়নামিক তারিখ নির্ধারণ
     const totalContrRange = `${formatDate(joinedDate, true)} - Present`;
 
     const currentStreakRange =
@@ -185,7 +185,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // ইমেজ অনুযায়ী হুবহু SVG পজিশনিং
+    // SVG
     const svg = `
     <svg width="495" height="195" viewBox="0 0 495 195" fill="none" xmlns="http://www.w3.org/2000/svg">
       <style>
@@ -209,13 +209,9 @@ export default async function handler(req, res) {
 
       <!-- Current Streak -->
       <g transform="translate(170, 0)">
-        <!-- মেইন সার্কেল -->
         <circle cx="77" cy="70" r="40" fill="#141321" stroke="#E94B8A" stroke-width="4.5"/>
-        
-        <!-- কাট-আউট আইকন এফেক্ট (গ্যাপ তৈরি করার জন্য ছোট সার্কেল) -->
         <circle cx="77" cy="30" r="9" fill="#141321"/>
 
-        <!-- আগুন আইকন -->
         <g transform="translate(69, 21) scale(0.55)">
           <path d="M12 0C7.5 3 6.3 6.7 6 9c-.3 2.3.9 3.6 1 4.5.1.9-.8.7-1.1-.1s-1.8-3.4-1.8-6.4C1 8.8 0 11 0 13.5 0 17 2 20 6.5 20S12 17.5 12 14c0-3.1-2.2-6.6-2.2-6.6C12 7.7 13 8.8 13.2 11c1 2.2 2 3.8 2.2 6.1C16.8 18.2 18 16 18 13.5 18 9.5 15.5 3 12 0z" fill="#E94B8A"/>
         </g>
