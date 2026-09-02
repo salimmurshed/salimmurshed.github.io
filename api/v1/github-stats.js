@@ -1,6 +1,5 @@
 import fetch from "node-fetch";
 
-// তারিখ ফরম্যাট করার হেলপার
 function formatDate(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -38,7 +37,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ১. ইউজার জয়েন করার তারিখ আনা
     const userQuery = JSON.stringify({
       query: `query($login: String!) { user(login: $login) { createdAt } }`,
       variables: { login: username },
@@ -65,7 +63,6 @@ export default async function handler(req, res) {
     let totalContributions = 0;
     const allDays = [];
 
-    // ২. অ্যাকাউন্ট শুরুর প্রথম দিন থেকে আজ পর্যন্ত অল-টাইম ডেটা আনা
     for (let year = startYear; year <= currentYear; year++) {
       const isCurrentYear = year === currentYear;
       const toDate = isCurrentYear
@@ -114,7 +111,6 @@ export default async function handler(req, res) {
 
     allDays.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // ৩. Longest & Current Streak অল-টাইম গণনা
     let longestStreak = 0;
     let currentStreakCount = 0;
     let tempStreakCount = 0;
@@ -152,10 +148,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // ৪. পুরো কার্ডের জন্য মাত্র একটিই ডায়নামিক তারিখ
     const overallDateRange = `${formatDate(joinedDate)} - Present`;
 
-    // ৫. SVG লেআউট
     const svg = `
     <svg width="495" height="195" viewBox="0 0 495 195" fill="none" xmlns="http://www.w3.org/2000/svg">
       <style>
@@ -176,20 +170,16 @@ export default async function handler(req, res) {
 
       <line x1="165" y1="25" x2="165" y2="140" stroke="#44415C" stroke-opacity="0.8"/>
 
-      <!-- Current Streak (ছবি, সার্কেল এবং লেখা নিচে নামিয়ে পজিশনিং ঠিক করা হয়েছে) -->
+      <!-- Current Streak (আরও নিচে নামানো হয়েছে) -->
       <g transform="translate(170, 0)">
-        <!-- সার্কেল নিচে নামানো -->
-        <circle cx="77" cy="65" r="38" fill="#141321" stroke="#E94B8A" stroke-width="4"/>
+        <circle cx="77" cy="72" r="38" fill="#141321" stroke="#E94B8A" stroke-width="4"/>
         
-        <!-- আগুনের আইকন নিচে নামানো -->
-        <g transform="translate(68, 20) scale(0.6)">
+        <g transform="translate(68, 27) scale(0.6)">
           <path d="M12 0C7.5 3 6.3 6.7 6 9c-.3 2.3.9 3.6 1 4.5.1.9-.8.7-1.1-.1s-1.8-3.4-1.8-6.4C1 8.8 0 11 0 13.5 0 17 2 20 6.5 20S12 17.5 12 14c0-3.1-2.2-6.6-2.2-6.6C12 7.7 13 8.8 13.2 11c1 2.2 2 3.8 2.2 6.1C16.8 18.2 18 16 18 13.5 18 9.5 15.5 3 12 0z" fill="#E94B8A"/>
         </g>
         
-        <!-- নম্বর নিচে নামানো -->
-        <text x="77" y="75" text-anchor="middle" class="text bold yellow" font-size="30">${currentStreakCount}</text>
-        <!-- 'Current Streak' লেখা নিচে নামানো -->
-        <text x="77" y="125" text-anchor="middle" class="text bold yellow" font-size="16">Current Streak</text>
+        <text x="77" y="82" text-anchor="middle" class="text bold yellow" font-size="30">${currentStreakCount}</text>
+        <text x="77" y="132" text-anchor="middle" class="text bold yellow" font-size="16">Current Streak</text>
       </g>
 
       <line x1="330" y1="25" x2="330" y2="140" stroke="#44415C" stroke-opacity="0.8"/>
@@ -200,7 +190,7 @@ export default async function handler(req, res) {
         <text x="70" y="110" text-anchor="middle" class="text pink" font-size="16">Longest Streak</text>
       </g>
 
-      <!-- কার্ডের একদম নিচে শুধুমাত্র একটিই ডায়নামিক তারিখ -->
+      <!-- কার্ডের নিচে তারিখ -->
       <text x="247" y="168" text-anchor="middle" class="text light-blue" font-size="13.5">${overallDateRange}</text>
     </svg>
     `;
