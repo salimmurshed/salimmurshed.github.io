@@ -11,6 +11,9 @@
     },
     "api/v1/github-stats.js": {
       "maxDuration": 10
+    },
+    "api/v1/git-stat.js": {
+      "maxDuration": 10
     }
   }
 }
