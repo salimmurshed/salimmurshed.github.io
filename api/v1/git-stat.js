@@ -1,130 +1,99 @@
-/**
- * Fetches GitHub contribution data year-by-year using the GraphQL API,
- * incorporating private contributions via GITHUB_TOKEN.
- */
-async function fetchContributionsByYear(username, startYear, endYear) {
+export default async function handler(req, res) {
+  const { username = "salimmurshed", year = new Date().getFullYear() } =
+    req.query;
   const token = process.env.GITHUB_TOKEN;
 
+  res.setHeader("Content-Type", "image/svg+xml");
+
   if (!token) {
-    throw new Error(
-      "GITHUB_TOKEN is not defined in the environment variables.",
-    );
+    return res.status(500).send(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="450" height="50">
+        <text x="20" y="30" fill="red" font-family="sans-serif" font-size="12">Error: GITHUB_TOKEN environment variable is missing.</text>
+      </svg>
+    `);
   }
 
-  const yearlyData = {};
-
-  for (let year = startYear; year <= endYear; year++) {
+  try {
     const fromDate = `${year}-01-01T00:00:00Z`;
     const toDate = `${year}-12-31T23:59:59Z`;
 
-    try {
-      const response = await fetch("https://api.github.com/graphql", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: `
-            query($userName: String!, $from: DateTime!, $to: DateTime!) {
-              user(login: $userName) {
-                contributionsCollection(from: $from, to: $to) {
-                  contributionCalendar {
-                    totalContributions
-                    weeks {
-                      contributionDays {
-                        contributionCount
-                        date
-                        color
-                      }
+    const response = await fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: `
+          query($userName: String!, $from: DateTime!, $to: DateTime!) {
+            user(login: $userName) {
+              contributionsCollection(from: $from, to: $to) {
+                totalContributions
+                contributionCalendar {
+                  weeks {
+                    contributionDays {
+                      contributionCount
+                      date
+                      color
                     }
                   }
                 }
               }
             }
-          `,
-          variables: {
-            userName: username,
-            from: fromDate,
-            to: toDate,
-          },
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.errors) {
-        console.error(`GitHub API Error for year ${year}:`, data.errors);
-        continue;
-      }
-
-      yearlyData[year] =
-        data.data.user.contributionsCollection.contributionCalendar;
-    } catch (error) {
-      console.error(`Network or parsing error for year ${year}:`, error);
-    }
-  }
-
-  return yearlyData;
-}
-
-/**
- * Renders the multi-year contribution calendars into a target DOM container.
- */
-async function renderGitHubContributions(
-  username,
-  startYear,
-  endYear,
-  containerId,
-) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  container.innerHTML = "<p>Loading contributions (public & private)...</p>";
-
-  const contributionsByYear = await fetchContributionsByYear(
-    username,
-    startYear,
-    endYear,
-  );
-
-  container.innerHTML = ""; // Clear loader
-
-  Object.entries(contributionsByYear).forEach(([year, calendar]) => {
-    const yearWrapper = document.createElement("div");
-    yearWrapper.style.marginBottom = "20px";
-
-    const heading = document.createElement("h3");
-    heading.innerText = `${year}: ${calendar.totalContributions} contributions`;
-    yearWrapper.appendChild(heading);
-
-    const grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridAutoFlow = "column";
-    grid.style.gridGap = "3px";
-    grid.style.overflowX = "auto";
-    grid.style.paddingBottom = "10px";
-
-    calendar.weeks.forEach((week) => {
-      const col = document.createElement("div");
-      col.style.display = "grid";
-      col.style.gridAutoRows = "10px";
-      col.style.gridGap = "3px";
-
-      week.contributionDays.forEach((day) => {
-        const cell = document.createElement("div");
-        cell.style.width = "10px";
-        cell.style.height = "10px";
-        cell.style.backgroundColor = day.color;
-        cell.style.borderRadius = "2px";
-        cell.title = `${day.date}: ${day.contributionCount} contributions`;
-        col.appendChild(cell);
-      });
-
-      grid.appendChild(col);
+          }
+        `,
+        variables: {
+          userName: username,
+          from: fromDate,
+          to: toDate,
+        },
+      }),
     });
 
-    yearWrapper.appendChild(grid);
-    container.appendChild(yearWrapper);
-  });
+    const json = await response.json();
+    const collection = json.data?.user?.contributionsCollection;
+
+    if (!collection) {
+      throw new Error("Invalid response or user not found");
+    }
+
+    const totalContributions = collection.totalContributions;
+    const weeks = collection.contributionCalendar.weeks;
+
+    const boxSize = 10;
+    const gap = 3;
+    const cols = weeks.length;
+    const width = cols * (boxSize + gap) + 40;
+    const height = 150;
+
+    let svgContent = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <style>
+          text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: #57606a; font-size: 12px; }
+          .header { font-weight: 600; font-size: 14px; fill: #24292f; }
+        </style>
+        <rect width="100%" height="100%" rx="6" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+        <text x="20" y="28" class="header">${totalContributions} contributions in ${year}</text>
+        <g transform="translate(20, 45)">
+    `;
+
+    weeks.forEach((week, wIndex) => {
+      week.contributionDays.forEach((day, dIndex) => {
+        const x = wIndex * (boxSize + gap);
+        const y = dIndex * (boxSize + gap);
+        svgContent += `<rect x="${x}" y="${y}" width="${boxSize}" height="${boxSize}" rx="2" fill="${day.color}"><title>${day.date}: ${day.contributionCount} contributions</title></rect>`;
+      });
+    });
+
+    svgContent += `</g></svg>`;
+
+    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate");
+    return res.status(200).send(svgContent);
+  } catch (error) {
+    return res.status(500).send(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="400" height="50">
+        <text x="20" y="30" fill="red" font-family="sans-serif" font-size="12">Failed to load contributions graph.</text>
+      </svg>
+    `);
+  }
 }
