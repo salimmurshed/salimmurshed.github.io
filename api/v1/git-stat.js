@@ -6,9 +6,9 @@ export default async function handler(req, res) {
   res.setHeader("Content-Type", "image/svg+xml");
 
   if (!token) {
-    return res.status(500).send(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="450" height="50">
-        <text x="20" y="30" fill="red" font-family="sans-serif" font-size="12">Error: GITHUB_TOKEN environment variable is missing.</text>
+    return res.status(200).send(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="500" height="50">
+        <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Config Error: GITHUB_TOKEN is undefined.</text>
       </svg>
     `);
   }
@@ -51,10 +51,22 @@ export default async function handler(req, res) {
     });
 
     const json = await response.json();
-    const collection = json.data?.user?.contributionsCollection;
 
+    if (json.errors) {
+      return res.status(200).send(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="50">
+          <text x="10" y="30" fill="red" font-family="sans-serif" font-size="11">GQL Error: ${json.errors[0].message}</text>
+        </svg>
+      `);
+    }
+
+    const collection = json.data?.user?.contributionsCollection;
     if (!collection) {
-      throw new Error("Invalid response or user not found");
+      return res.status(200).send(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="500" height="50">
+          <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Error: User '${username}' not found.</text>
+        </svg>
+      `);
     }
 
     const totalContributions = collection.totalContributions;
@@ -89,10 +101,10 @@ export default async function handler(req, res) {
 
     res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate");
     return res.status(200).send(svgContent);
-  } catch (error) {
-    return res.status(500).send(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="400" height="50">
-        <text x="20" y="30" fill="red" font-family="sans-serif" font-size="12">Failed to load contributions graph.</text>
+  } catch (err) {
+    return res.status(200).send(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="500" height="50">
+        <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Catch Error: ${err.message}</text>
       </svg>
     `);
   }
