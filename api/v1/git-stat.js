@@ -4,11 +4,9 @@ export default async function handler(req, res) {
   const token = process.env.GITHUB_TOKEN;
 
   if (!token) {
-    res.statusCode = 500;
-    res.setHeader("Content-Type", "text/plain");
-    return res.end(
-      "Error: GITHUB_TOKEN environment variable is not set on Vercel.",
-    );
+    return res
+      .status(500)
+      .send("Error: GITHUB_TOKEN environment variable is not set on Vercel.");
   }
 
   try {
@@ -46,15 +44,20 @@ export default async function handler(req, res) {
     });
 
     const json = await response.json();
+
+    if (json.errors) {
+      return res
+        .status(400)
+        .send(`GitHub GraphQL Error: ${json.errors[0].message}`);
+    }
+
     const calendar =
       json.data?.user?.contributionsCollection?.contributionCalendar;
 
     if (!calendar) {
-      res.statusCode = 404;
-      res.setHeader("Content-Type", "text/plain");
-      return res.end(
-        "Could not fetch contribution calendar from GitHub. Check your username or token.",
-      );
+      return res
+        .status(404)
+        .send("Could not fetch contribution calendar from GitHub.");
     }
 
     let weeksHtml = "";
@@ -89,11 +92,8 @@ export default async function handler(req, res) {
     </html>`;
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.statusCode = 200;
-    return res.end(html);
+    return res.status(200).send(html);
   } catch (err) {
-    res.statusCode = 500;
-    res.setHeader("Content-Type", "text/plain");
-    return res.end(`Server Error: ${err.message}`);
+    return res.status(500).send(`Server Error: ${err.message}`);
   }
 }
