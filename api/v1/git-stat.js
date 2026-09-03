@@ -1,22 +1,17 @@
 export default async function handler(req, res) {
-  const { username = "salimmurshed", year = new Date().getFullYear() } =
-    req.query;
+  const username = "salimmurshed";
+  const year = req.query.year || 2024;
+
+  // This uses your exact GITHUB_TOKEN variable securely on the server
   const token = process.env.GITHUB_TOKEN;
 
-  res.setHeader("Content-Type", "image/svg+xml");
-
   if (!token) {
-    return res.status(200).send(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="500" height="50">
-        <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Config Error: GITHUB_TOKEN is undefined.</text>
-      </svg>
-    `);
+    return res
+      .status(500.5)
+      .send("Error: GITHUB_TOKEN environment variable is not set on Vercel.");
   }
 
   try {
-    const fromDate = `${year}-01-01T00:00:00Z`;
-    const toDate = `${year}-12-31T23:59:59Z`;
-
     const response = await fetch("https://api.github.com/graphql", {
       method: "POST",
       headers: {
@@ -44,69 +39,58 @@ export default async function handler(req, res) {
         `,
         variables: {
           userName: username,
-          from: fromDate,
-          to: toDate,
+          from: `${year}-01-01T00:00:00Z`,
+          to: `${year}-12-31T23:59:59Z`,
         },
       }),
     });
 
     const json = await response.json();
-
-    if (json.errors) {
-      return res.status(200).send(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="50">
-          <text x="10" y="30" fill="red" font-family="sans-serif" font-size="11">GQL Error: ${json.errors[0].message}</text>
-        </svg>
-      `);
-    }
-
     const calendar =
       json.data?.user?.contributionsCollection?.contributionCalendar;
+
     if (!calendar) {
-      return res.status(200).send(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="500" height="50">
-          <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Error: User '${username}' not found or no data.</text>
-        </svg>
-      `);
+      return res
+        .status(404)
+        .send("Could not fetch contribution calendar from GitHub.");
     }
 
-    const totalContributions = calendar.totalContributions;
-    const weeks = calendar.weeks;
-
-    const boxSize = 10;
-    const gap = 3;
-    const cols = weeks.length;
-    const width = cols * (boxSize + gap) + 40;
-    const height = 150;
-
-    let svgContent = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-        <style>
-          text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: #57606a; font-size: 12px; }
-          .header { font-weight: 600; font-size: 14px; fill: #24292f; }
-        </style>
-        <rect width="100%" height="100%" rx="6" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
-        <text x="20" y="28" class="header">${totalContributions} contributions in ${year}</text>
-        <g transform="translate(20, 45)">
-    `;
-
-    weeks.forEach((week, wIndex) => {
-      week.contributionDays.forEach((day, dIndex) => {
-        const x = wIndex * (boxSize + gap);
-        const y = dIndex * (boxSize + gap);
-        svgContent += `<rect x="${x}" y="${y}" width="${boxSize}" height="${boxSize}" rx="2" fill="${day.color}"><title>${day.date}: ${day.contributionCount} contributions</title></rect>`;
+    // Build columns HTML on the server using your token data
+    let weeksHtml = "";
+    calendar.weeks.forEach((week) => {
+      let daysHtml = "";
+      week.contributionDays.forEach((day) => {
+        daysHtml += `<div class="cell" style="background-color: ${day.color};" title="${day.date}: ${day.contributionCount} contributions"></div>`;
       });
+      weeksHtml += `<div class="column">${daysHtml}</div>`;
     });
 
-    svgContent += `</g></svg>`;
+    // Send complete styled HTML page back
+    const html = `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>GitHub Contributions - ${year}</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 20px; }
+            h3 { margin-top: 0; font-size: 14px; color: #8b949e; }
+            .grid { display: grid; grid-auto-flow: column; grid-gap: 3px; overflow-x: auto; }
+            .column { display: grid; grid-auto-rows: 10px; grid-gap: 3px; }
+            .cell { width: 10px; height: 10px; border-radius: 2px; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h3>${calendar.totalContributions} contributions in ${year} (Public & Private)</h3>
+            <div class="grid">${weeksHtml}</div>
+        </div>
+    </body>
+    </html>`;
 
-    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate");
-    return res.status(200).send(svgContent);
+    res.setHeader("Content-Type", "text/html");
+    return res.status(200).send(html);
   } catch (err) {
-    return res.status(200).send(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="500" height="50">
-        <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Catch Error: ${err.message}</text>
-      </svg>
-    `);
+    return res.status(500).send(`Server Error: ${err.message}`);
   }
 }
