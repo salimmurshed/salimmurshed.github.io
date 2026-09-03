@@ -28,8 +28,8 @@ export default async function handler(req, res) {
           query($userName: String!, $from: DateTime!, $to: DateTime!) {
             user(login: $userName) {
               contributionsCollection(from: $from, to: $to) {
-                totalContributions
                 contributionCalendar {
+                  totalContributions
                   weeks {
                     contributionDays {
                       contributionCount
@@ -60,17 +60,18 @@ export default async function handler(req, res) {
       `);
     }
 
-    const collection = json.data?.user?.contributionsCollection;
-    if (!collection) {
+    const calendar =
+      json.data?.user?.contributionsCollection?.contributionCalendar;
+    if (!calendar) {
       return res.status(200).send(`
         <svg xmlns="http://www.w3.org/2000/svg" width="500" height="50">
-          <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Error: User '${username}' not found.</text>
+          <text x="10" y="30" fill="red" font-family="sans-serif" font-size="12">Error: User '${username}' not found or no data.</text>
         </svg>
       `);
     }
 
-    const totalContributions = collection.totalContributions;
-    const weeks = collection.contributionCalendar.weeks;
+    const totalContributions = calendar.totalContributions;
+    const weeks = calendar.weeks;
 
     const boxSize = 10;
     const gap = 3;
