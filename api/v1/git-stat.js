@@ -1,14 +1,14 @@
 export default async function handler(req, res) {
   const username = "salimmurshed";
   const year = req.query.year || 2024;
-
-  // This uses your exact GITHUB_TOKEN variable securely on the server
   const token = process.env.GITHUB_TOKEN;
 
   if (!token) {
-    return res
-      .status(500.5)
-      .send("Error: GITHUB_TOKEN environment variable is not set on Vercel.");
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "text/plain");
+    return res.end(
+      "Error: GITHUB_TOKEN environment variable is not set on Vercel.",
+    );
   }
 
   try {
@@ -50,12 +50,13 @@ export default async function handler(req, res) {
       json.data?.user?.contributionsCollection?.contributionCalendar;
 
     if (!calendar) {
-      return res
-        .status(404)
-        .send("Could not fetch contribution calendar from GitHub.");
+      res.statusCode = 404;
+      res.setHeader("Content-Type", "text/plain");
+      return res.end(
+        "Could not fetch contribution calendar from GitHub. Check your username or token.",
+      );
     }
 
-    // Build columns HTML on the server using your token data
     let weeksHtml = "";
     calendar.weeks.forEach((week) => {
       let daysHtml = "";
@@ -65,7 +66,6 @@ export default async function handler(req, res) {
       weeksHtml += `<div class="column">${daysHtml}</div>`;
     });
 
-    // Send complete styled HTML page back
     const html = `<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -88,9 +88,12 @@ export default async function handler(req, res) {
     </body>
     </html>`;
 
-    res.setHeader("Content-Type", "text/html");
-    return res.status(200).send(html);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.statusCode = 200;
+    return res.end(html);
   } catch (err) {
-    return res.status(500).send(`Server Error: ${err.message}`);
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "text/plain");
+    return res.end(`Server Error: ${err.message}`);
   }
 }
